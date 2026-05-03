@@ -6,7 +6,6 @@
     <title>@ViewData["Title"] - DiscogScrobbler</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/DiscogScrobblerMVC.styles.css" asp-append-version="true" />
 </head>
 <body>
 
@@ -14,7 +13,7 @@
         <nav class="navbar navbar-expand-sm">
             <div class="container-fluid px-3">
                 <a class="navbar-brand me-3" asp-area="" asp-controller="Home" asp-action="Index">
-                    Discog<span style="color:var(--txt2)">Scrobbler</span>
+                    Discog<span class="navbar-brand-sub">Scrobbler</span>
                 </a>
                 <form class="navbar-search d-flex flex-grow-1 me-2"
                       asp-controller="Collection" asp-action="Search" method="get">
@@ -57,14 +56,14 @@
         </nav>
     </header>
 
-    <div class="container-fluid px-3 py-3" style="max-width: 900px; margin: 0 auto;">
+    <div class="container-fluid px-3 py-3 content-wrap">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
     <footer class="footer border-top py-3">
-        <div class="container-fluid px-3" style="max-width: 640px; margin: 0 auto;">
+        <div class="container-fluid px-3 footer-wrap">
             &copy; 2026 DiscogScrobblerMVC &mdash;
         </div>
     </footer>
