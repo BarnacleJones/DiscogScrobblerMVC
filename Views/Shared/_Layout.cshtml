@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>@ViewData["Title"] - DiscogScrobbler</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/DiscogScrobblerMVC.styles.css" asp-append-version="true" />
+</head>
+<body>
+
+    <header>
+        <nav class="navbar navbar-expand-sm">
+            <div class="container-fluid px-3">
+                <a class="navbar-brand me-3" asp-area="" asp-controller="Home" asp-action="Index">
+                    Discog<span style="color:var(--txt2)">Scrobbler</span>
+                </a>
+                <form class="navbar-search d-flex flex-grow-1 me-2"
+                      asp-controller="Collection" asp-action="Search" method="get">
+                    <div class="input-group">
+                        <input class="form-control"
+                               type="search"
+                               name="q"
+                               placeholder="artist or album&hellip;"
+                               value="@ViewData["SearchQuery"]"
+                               aria-label="Search collection" />
+                        <button class="btn btn-primary" type="submit">&#x2315;</button>
+                    </div>
+                </form>
+                @* {{!-- Toggler for nav links on mobile --}} *@
+                <button class="navbar-toggler" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#mainNav"
+                        aria-controls="mainNav"
+                        aria-expanded="false"
+                        aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                @* {{!-- Collapsible nav links --}} *@
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav ms-auto mt-2 mt-sm-0 gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Collection" ? "active" : "")"
+                               asp-controller="Collection" asp-action="Index">Collection</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Artists" ? "active" : "")"
+                               asp-controller="Artists" asp-action="Index">Artists</a>
+                        </li>
+                        <partial name="_LoginPartial" />
+                    </ul>
+                </div>
+
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid px-3 py-3" style="max-width: 900px; margin: 0 auto;">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="footer border-top py-3">
+        <div class="container-fluid px-3" style="max-width: 640px; margin: 0 auto;">
+            &copy; 2026 DiscogScrobblerMVC &mdash;
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

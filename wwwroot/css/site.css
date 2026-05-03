@@ -1,0 +1,286 @@
+/* ─── Google Fonts ───────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;500;600;700&display=swap');
+
+/* ─── Design tokens ──────────────────────────────────── */
+:root {
+  --bg:        #0e0e0f;
+  --bg2:       #161618;
+  --bg3:       #1e1e21;
+  --bg4:       #26262a;
+  --line:      rgba(255,255,255,0.08);
+  --line2:     rgba(255,255,255,0.14);
+  --txt:       #f0efe8;
+  --txt2:      #8a897f;
+  --txt3:      #5a5955;
+  --accent:    #d4f542;
+  --accent2:   #a8c233;
+  --teal:      #3ecfa0;
+  --amber:     #f5a623;
+  --purple:    #9b7ff4;
+  --coral:     #f07050;
+  --radius:    10px;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+/* ─── Base ───────────────────────────────────────────── */
+html {
+  font-size: 14px;
+  background: var(--bg);
+  position: relative;
+  min-height: 100%;
+}
+@media (min-width: 768px) {
+  html { font-size: 16px; }
+}
+
+body {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--txt);
+  margin-bottom: 60px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Navbar ─────────────────────────────────────────── */
+.navbar {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: none;
+  padding: 10px 16px;
+}
+
+.navbar-brand {
+  font-family: var(--font-head);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent) !important;
+  line-height: 1;
+  padding: 0;
+}
+.navbar-brand:hover { color: var(--accent2) !important; }
+
+/* search in navbar */
+.navbar-search .form-control {
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  color: var(--txt);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  height: 34px;
+}
+.navbar-search .form-control::placeholder { color: var(--txt3); }
+.navbar-search .form-control:focus {
+  background: var(--bg3);
+  border-color: var(--accent);
+  color: var(--txt);
+  box-shadow: 0 0 0 2px rgba(212,245,66,0.12);
+}
+.navbar-search .btn {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* nav links */
+.nav-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--txt2) !important;
+  padding: 6px 10px !important;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.nav-link:hover, .nav-link:focus {
+  color: var(--txt) !important;
+  border-color: var(--line2);
+}
+.nav-link.active {
+  background: var(--accent);
+  color: #0e0e0f !important;
+  border-color: var(--accent);
+  font-weight: 500;
+}
+
+.navbar-toggler {
+  border: 1px solid var(--line2);
+  padding: 4px 8px;
+}
+.navbar-toggler-icon {
+  filter: invert(1) opacity(0.5);
+}
+
+/* ─── Cards ──────────────────────────────────────────── */
+.card {
+  background: var(--bg2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius) !important;
+}
+
+.card-body { padding: 12px; }
+
+.card-title {
+  font-family: var(--font-head);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--txt);
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  color: var(--txt3);
+  letter-spacing: 0.02em;
+}
+
+.card-text {
+  font-size: 12px;
+  color: var(--txt2);
+}
+
+/* square album art */
+.album-cover {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* ─── Buttons ────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  border-radius: 6px;
+  padding: 7px 14px;
+  transition: all 0.15s;
+  border-width: 1px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0e0e0f;
+  font-weight: 500;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+  background: var(--accent2) !important;
+  border-color: var(--accent2) !important;
+  color: #0e0e0f !important;
+}
+
+.btn-outline-secondary {
+  background: transparent;
+  border-color: var(--line2);
+  color: var(--txt2);
+}
+.btn-outline-secondary:hover, .btn-outline-secondary:focus {
+  background: var(--bg3);
+  border-color: var(--txt3);
+  color: var(--txt);
+}
+
+.btn:focus, .btn:active:focus {
+  box-shadow: 0 0 0 2px rgba(212,245,66,0.2);
+}
+
+/* ─── Badges ─────────────────────────────────────────── */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+.badge-teal   { background: rgba(62,207,160,0.12);  color: var(--teal);   border: 1px solid rgba(62,207,160,0.2); }
+.badge-amber  { background: rgba(245,166,35,0.12);  color: var(--amber);  border: 1px solid rgba(245,166,35,0.2); }
+.badge-purple { background: rgba(155,127,244,0.12); color: var(--purple); border: 1px solid rgba(155,127,244,0.25); }
+.badge-coral  { background: rgba(240,112,80,0.12);  color: var(--coral);  border: 1px solid rgba(240,112,80,0.2); }
+
+/* ─── Section labels ─────────────────────────────────── */
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--txt3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 20px 0 8px;
+  padding-left: 2px;
+}
+
+/* ─── Forms ──────────────────────────────────────────── */
+.form-control, .form-select {
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  color: var(--txt);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border-radius: 6px;
+}
+.form-control:focus, .form-select:focus {
+  background: var(--bg3);
+  border-color: var(--accent);
+  color: var(--txt);
+  box-shadow: 0 0 0 2px rgba(212,245,66,0.12);
+}
+.form-control::placeholder { color: var(--txt3); }
+.form-label {
+  font-size: 11px;
+  color: var(--txt3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ─── Alerts ─────────────────────────────────────────── */
+.alert {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-radius: var(--radius);
+}
+.alert-success { background: rgba(62,207,160,0.07);  border-color: rgba(62,207,160,0.25);  color: var(--teal); }
+.alert-danger  { background: rgba(240,112,80,0.07);  border-color: rgba(240,112,80,0.25);  color: var(--coral); }
+.alert-warning { background: rgba(245,166,35,0.07);  border-color: rgba(245,166,35,0.25);  color: var(--amber); }
+.alert-info    { background: rgba(155,127,244,0.07); border-color: rgba(155,127,244,0.25); color: var(--purple); }
+
+/* ─── Tables ─────────────────────────────────────────── */
+.table { color: var(--txt2); font-family: var(--font-mono); font-size: 13px; }
+.table th {
+  font-family: var(--font-head);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  border-color: var(--line2);
+  font-weight: 600;
+}
+.table td { border-color: var(--line); }
+.table tbody tr:hover td { background: var(--bg3); color: var(--txt); }
+
+/* ─── Footer ─────────────────────────────────────────── */
+.footer {
+  background: var(--bg) !important;
+  border-top: 1px solid var(--line) !important;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--txt3);
+  letter-spacing: 0.04em;
+}
+.footer a { color: var(--txt3); text-decoration: none; border-bottom: 1px solid var(--line2); }
+.footer a:hover { color: var(--txt2); }
+
+/* ─── Links ──────────────────────────────────────────── */
+a { color: var(--accent); }
+a:hover { color: var(--accent2); }
+
+/* ─── Validation ─────────────────────────────────────── */
+.text-danger, .field-validation-error { color: var(--coral) !important; font-size: 11px; }

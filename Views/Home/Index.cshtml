@@ -1,0 +1,83 @@
+﻿@{
+    ViewData["Title"] = "Collection";
+}
+
+<div class="section-label">Recent additions</div>
+
+<div class="row g-3">
+
+    @* Repeat this partial/loop per album in your model - shown here as static prototype *@
+
+    <div class="col-6 col-sm-4">
+        <div class="card h-100">
+            <img class="album-cover"
+                 src="https://placehold.co/400x400/1e1e21/5a5955?text=Cover"
+                 alt="Album cover" />
+            <div class="card-body d-flex flex-column gap-2">
+                <div>
+                    <div class="card-title">Remain in Light</div>
+                    <div class="card-subtitle">Talking Heads</div>
+                </div>
+                <div class="mt-auto d-flex flex-column gap-1">
+                    <button class="btn btn-primary w-100">Scrobble</button>
+                    <a href="/release/1" class="btn btn-outline-secondary w-100">Go to release</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-sm-4">
+        <div class="card h-100">
+            <img class="album-cover"
+                 src="https://placehold.co/400x400/1e1e21/5a5955?text=Cover"
+                 alt="Album cover" />
+            <div class="card-body d-flex flex-column gap-2">
+                <div>
+                    <div class="card-title">Loveless</div>
+                    <div class="card-subtitle">My Bloody Valentine</div>
+                </div>
+                <div class="mt-auto d-flex flex-column gap-1">
+                    <button class="btn btn-primary w-100">Scrobble</button>
+                    <a href="/release/2" class="btn btn-outline-secondary w-100">Go to release</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-sm-4">
+        <div class="card h-100">
+            <img class="album-cover"
+                 src="https://placehold.co/400x400/1e1e21/5a5955?text=Cover"
+                 alt="Album cover" />
+            <div class="card-body d-flex flex-column gap-2">
+                <div>
+                    <div class="card-title">OK Computer</div>
+                    <div class="card-subtitle">Radiohead</div>
+                </div>
+                <div class="mt-auto d-flex flex-column gap-1">
+                    <button class="btn btn-primary w-100">Scrobble</button>
+                    <a href="/release/3" class="btn btn-outline-secondary w-100">Go to release</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-sm-4">
+        <div class="card h-100">
+            <img class="album-cover"
+                 src="https://placehold.co/400x400/1e1e21/5a5955?text=Cover"
+                 alt="Album cover" />
+            <div class="card-body d-flex flex-column gap-2">
+                <div>
+                    <div class="card-title">Blue Lines</div>
+                    <div class="card-subtitle">Massive Attack</div>
+                </div>
+                <div class="mt-auto d-flex flex-column gap-1">
+                    <button class="btn btn-primary w-100">Scrobble</button>
+                    <a href="/release/4" class="btn btn-outline-secondary w-100">Go to release</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
