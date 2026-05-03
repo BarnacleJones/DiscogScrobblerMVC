@@ -1,6 +1,9 @@
+using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DiscogScrobblerMVC.Data;
+using DiscogScrobblerMVC.Services;
+using Hqub.Lastfm;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +15,27 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.AddHttpClient<IDiscogsService, DiscogsService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.discogs.com/");
+    // Required by Discogs — must identify your app
+    client.DefaultRequestHeaders.UserAgent
+        .ParseAdd("DiscogScrobblerMVC/1.0 +https://yourdomain.com");
+    // Personal token from appsettings
+    var token = builder.Configuration["Discogs:PersonalToken"];
+    client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Discogs", $"token={token}");
+});
+
+builder.Services.AddSingleton(sp =>
+    new LastfmClient(
+        builder.Configuration["LastFm:ApiKey"]!,
+        builder.Configuration["LastFm:ApiSecret"]!
+    )
+);
+builder.Services.AddScoped<ILastFmService, LastFmService>();
+
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
