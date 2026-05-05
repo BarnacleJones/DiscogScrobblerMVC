@@ -1,4 +1,4 @@
-﻿using DiscogScrobblerMVC.Data.Entities;
+using DiscogScrobblerMVC.Data.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,5 +10,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         : base(options)
     {
     }
+
     public DbSet<Release> Releases { get; set; }
+    public DbSet<DiscogsReleaseToUser> DiscogsReleaseToUsers { get; set; }
+    public DbSet<DiscogsReleaseImages> DiscogsReleaseImages { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder); // registers Identity tables
+        // auto-discovers all IEntityTypeConfiguration<T> classes in this assembly
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+    }
 }

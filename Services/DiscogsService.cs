@@ -24,8 +24,8 @@ public class DiscogsService : IDiscogsService
         _db = db;
         _logger = logger;
     }
-    
-    
+
+
     public void Authenticate(string token)
     {
         _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(token);
@@ -37,22 +37,15 @@ public class DiscogsService : IDiscogsService
         const int perPage = 100;
         var hasMore = true;
 
+        var seenIds = new HashSet<int>();
+
         while (hasMore)
         {
             var (pagination, releases) = await _discogsApiClient.GetCollectionFolderReleases(userId, 0);
 
             foreach (var item in releases)
             {
-                var release = ConstructNewReleaseEntity(userId, item);
-
-                var existing = await _db.Releases
-                    .FirstOrDefaultAsync(r => r.DiscogsReleaseId == item.Id && r.UserId == userId);
-                
-                if (existing is null)
-                    _db.Releases.Add(release);
-                else
-                    // Update cover URL in case it changed (Discogs CDN URLs rotate)
-                    existing.CoverUrl = item.Release.CoverImageUrl;
+                await UpsertCollectionItem(userId, item, seenIds);
             }
 
             await _db.SaveChangesAsync();
@@ -65,14 +58,56 @@ public class DiscogsService : IDiscogsService
         _logger.LogInformation("Discogs sync complete for {Username}", discogsUsername);
     }
 
-    private static Release ConstructNewReleaseEntity(string userId, CollectionFolderRelease item)
+    private async Task UpsertCollectionItem(string userId, CollectionFolderRelease item, HashSet<int> seenIds)
+    {
+        // Duplicate DiscogsReleaseId within a batch (e.g. same release in two folders) — skip.
+        if (!seenIds.Add(item.Id))
+            return;
+
+        var existingRelease = await _db.Releases
+            .Include(r => r.Images)
+            .FirstOrDefaultAsync(r => r.DiscogsReleaseId == item.Id);
+
+        if (existingRelease is null)
+        {
+            _db.Releases.Add(ConstructNewReleaseEntity(item));
+            _db.DiscogsReleaseImages.Add(new DiscogsReleaseImages
+            {
+                DiscogsReleaseId = item.Id,
+                CoverUrl = item.Release.CoverImageUrl,
+            });
+            _db.DiscogsReleaseToUsers.Add(new DiscogsReleaseToUser
+            {
+                DiscogsReleaseId = item.Id,
+                UserId = userId,
+                DateAdded = item.AddedAt,
+            });
+        }
+        else
+        {
+            // Update cover URL in case it changed (Discogs CDN URLs rotate)
+            if (existingRelease.Images is not null)
+                existingRelease.Images.CoverUrl = item.Release.CoverImageUrl;
+
+            var existingUserLink = await _db.DiscogsReleaseToUsers
+                .FirstOrDefaultAsync(r => r.DiscogsReleaseId == item.Id && r.UserId == userId);
+
+            if (existingUserLink is null)
+            {
+                _db.DiscogsReleaseToUsers.Add(new DiscogsReleaseToUser
+                {
+                    DiscogsReleaseId = item.Id,
+                    UserId = userId,
+                    DateAdded = item.AddedAt,
+                });
+            }
+        }
+    }
+
+    private static Release ConstructNewReleaseEntity(CollectionFolderRelease item)
     {
         var releaseInformation = item.Release;
-        var discogsId = item.Id;
-        var addedAt = item.AddedAt;
 
-        // Primary image
-        var coverUrl = releaseInformation.CoverImageUrl;
         // Labels → take the first todo: maybe a joining table if this is annoying
         var label = releaseInformation.Labels.FirstOrDefault()?.Name;
 
@@ -84,15 +119,12 @@ public class DiscogsService : IDiscogsService
 
         return new Release
         {
-            DiscogsReleaseId = discogsId,
+            DiscogsReleaseId = item.Id,
             Artist = artistName,
             Album = releaseInformation.Title,
             Year = releaseInformation.Year,
-            CoverUrl = coverUrl,
             Format = format,
             RecordLabel = label,
-            DateAdded = addedAt,
-            UserId = userId,
         };
     }
 
@@ -103,56 +135,49 @@ public class DiscogsService : IDiscogsService
 
         foreach (var user in usersWithDiscogsUsernames)
         {
-            if( user.DiscogsUsername.IsNullOrEmpty())
+            if (user.DiscogsUsername.IsNullOrEmpty())
                 continue;
-            
+
             var response = await _discogsApiClient.GetCollectionFolderReleases(user.DiscogsUsername!, 0, cancellationToken: ct);
-            
+
+            var seenIds = new HashSet<int>();
             foreach (var item in response!.Releases)
             {
-                var release = await _db.Releases.FindAsync([item.Id], ct);
-
-                if (release is null)
-                {
-                    _db.Releases.Add(ConstructNewReleaseEntity(user.Id, item));
-                }
-                // else if (check other changed fields too, but remember they have user ids against them)
-                // {
-                //     release.Title = item.Title;
-                // }
+                await UpsertCollectionItem(user.Id, item, seenIds);
             }
-            
-            // Be polite 
+
+            // Be polite
             await Task.Delay(1100, ct);
         }
-        
+
         await _db.SaveChangesAsync(ct);
     }
-    
+
     public async Task DownloadMissingImages(CancellationToken ct)
     {
-        var releasesWithoutImages = await _db.Releases
-            .Where(r => r.CoverImage == null && r.CoverUrl != null)
+        var imagesWithoutData = await _db.DiscogsReleaseImages
+            .Include(i => i.Release)
+            .Where(i => i.CoverImage == null && i.CoverUrl != null)
             .ToListAsync(ct);
 
-        foreach (var release in releasesWithoutImages)
+        foreach (var image in imagesWithoutData)
         {
             try
             {
-                var bytes = await _http.GetByteArrayAsync(release.CoverUrl, ct);
-                release.CoverImage = bytes;
+                var bytes = await _http.GetByteArrayAsync(image.CoverUrl, ct);
+                image.CoverImage = bytes;
 
                 // Save after each one so progress isn't lost on crash
                 await _db.SaveChangesAsync(ct);
 
-                _logger.LogInformation("Downloaded image for album {0} with release id {1}", release.Album, release.DiscogsReleaseId);
+                _logger.LogInformation("Downloaded image for album {0} with release id {1}", image.Release.Album, image.DiscogsReleaseId);
 
-                // Be polite 
+                // Be polite
                 await Task.Delay(1100, ct);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to download image for album {0} with release id {1}", release.Album, release.DiscogsReleaseId);
+                _logger.LogWarning(ex, "Failed to download image for album {0} with release id {1}", image.Release.Album, image.DiscogsReleaseId);
             }
         }
     }
