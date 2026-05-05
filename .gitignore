@@ -12,6 +12,9 @@
 #file I made for storing secrets
 appsettings.Local.json
 
+#loggylog
+logs
+
 # User-specific files
 *.rsuser
 *.suo

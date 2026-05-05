@@ -18,6 +18,7 @@ public class DiscogsService : IDiscogsService
 
     public DiscogsService(HttpClient http, IDiscogsApiClient discogsApiClient, IDiscogsAuthenticationService discogsAuthenticationService, ApplicationDbContext db, ILogger<DiscogsService> logger)
     {
+        _http = http;
         _discogsApiClient = discogsApiClient;
         _discogsAuthenticationService = discogsAuthenticationService;
         _db = db;
