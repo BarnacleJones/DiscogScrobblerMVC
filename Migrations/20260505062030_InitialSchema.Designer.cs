@@ -8,17 +8,32 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace DiscogScrobblerMVC.Data.Migrations
+namespace DiscogScrobblerMVC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260505051547_Initial")]
-    partial class Initial
+    [Migration("20260505062030_InitialSchema")]
+    partial class InitialSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.26");
+
+            modelBuilder.Entity("ArtistRelease", b =>
+                {
+                    b.Property<int>("ArtistsId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReleasesId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ArtistsId", "ReleasesId");
+
+                    b.HasIndex("ReleasesId");
+
+                    b.ToTable("ArtistRelease");
+                });
 
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.ApplicationUser", b =>
                 {
@@ -87,6 +102,93 @@ namespace DiscogScrobblerMVC.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Artist", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Artists");
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseImages", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("CoverImage")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("CoverUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DiscogsReleaseId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DiscogsReleaseId")
+                        .IsUnique();
+
+                    b.ToTable("DiscogsReleaseImages");
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseToUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("DateAdded")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DiscogsReleaseId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DiscogsReleaseId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("DiscogsReleaseToUsers");
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Label", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Labels");
+                });
+
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Release", b =>
                 {
                     b.Property<int>("Id")
@@ -95,40 +197,36 @@ namespace DiscogScrobblerMVC.Data.Migrations
 
                     b.Property<string>("Album")
                         .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Artist")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<byte[]>("CoverImage")
-                        .HasColumnType("BLOB");
-
-                    b.Property<string>("CoverUrl")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("DateAdded")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("DiscogsReleaseId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Format")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RecordLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("Year")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DiscogsReleaseId")
+                        .IsUnique();
+
                     b.ToTable("Releases");
+                });
+
+            modelBuilder.Entity("LabelRelease", b =>
+                {
+                    b.Property<int>("LabelsId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReleasesId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("LabelsId", "ReleasesId");
+
+                    b.HasIndex("ReleasesId");
+
+                    b.ToTable("LabelRelease");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -263,6 +361,60 @@ namespace DiscogScrobblerMVC.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistRelease", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Artist", null)
+                        .WithMany()
+                        .HasForeignKey("ArtistsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", null)
+                        .WithMany()
+                        .HasForeignKey("ReleasesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseImages", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", "Release")
+                        .WithOne("Images")
+                        .HasForeignKey("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseImages", "DiscogsReleaseId")
+                        .HasPrincipalKey("DiscogScrobblerMVC.Data.Entities.Release", "DiscogsReleaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Release");
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseToUser", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", "Release")
+                        .WithMany("UserAssociations")
+                        .HasForeignKey("DiscogsReleaseId")
+                        .HasPrincipalKey("DiscogsReleaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Release");
+                });
+
+            modelBuilder.Entity("LabelRelease", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Label", null)
+                        .WithMany()
+                        .HasForeignKey("LabelsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", null)
+                        .WithMany()
+                        .HasForeignKey("ReleasesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -312,6 +464,13 @@ namespace DiscogScrobblerMVC.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Release", b =>
+                {
+                    b.Navigation("Images");
+
+                    b.Navigation("UserAssociations");
                 });
 #pragma warning restore 612, 618
         }

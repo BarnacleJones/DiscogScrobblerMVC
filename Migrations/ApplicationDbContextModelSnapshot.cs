@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace DiscogScrobblerMVC.Data.Migrations
+namespace DiscogScrobblerMVC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     partial class ApplicationDbContextModelSnapshot : ModelSnapshot
@@ -16,6 +16,21 @@ namespace DiscogScrobblerMVC.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.26");
+
+            modelBuilder.Entity("ArtistRelease", b =>
+                {
+                    b.Property<int>("ArtistsId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReleasesId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ArtistsId", "ReleasesId");
+
+                    b.HasIndex("ReleasesId");
+
+                    b.ToTable("ArtistRelease");
+                });
 
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.ApplicationUser", b =>
                 {
@@ -84,6 +99,25 @@ namespace DiscogScrobblerMVC.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Artist", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Artists");
+                });
+
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseImages", b =>
                 {
                     b.Property<int>("Id")
@@ -133,6 +167,25 @@ namespace DiscogScrobblerMVC.Data.Migrations
                     b.ToTable("DiscogsReleaseToUsers");
                 });
 
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Label", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Labels");
+                });
+
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Release", b =>
                 {
                     b.Property<int>("Id")
@@ -144,21 +197,8 @@ namespace DiscogScrobblerMVC.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Artist")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("DiscogsReleaseId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Format")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RecordLabel")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("Year")
                         .HasColumnType("INTEGER");
@@ -169,6 +209,21 @@ namespace DiscogScrobblerMVC.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Releases");
+                });
+
+            modelBuilder.Entity("LabelRelease", b =>
+                {
+                    b.Property<int>("LabelsId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReleasesId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("LabelsId", "ReleasesId");
+
+                    b.HasIndex("ReleasesId");
+
+                    b.ToTable("LabelRelease");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -303,6 +358,21 @@ namespace DiscogScrobblerMVC.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistRelease", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Artist", null)
+                        .WithMany()
+                        .HasForeignKey("ArtistsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", null)
+                        .WithMany()
+                        .HasForeignKey("ReleasesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.DiscogsReleaseImages", b =>
                 {
                     b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", "Release")
@@ -325,6 +395,21 @@ namespace DiscogScrobblerMVC.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Release");
+                });
+
+            modelBuilder.Entity("LabelRelease", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Label", null)
+                        .WithMany()
+                        .HasForeignKey("LabelsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", null)
+                        .WithMany()
+                        .HasForeignKey("ReleasesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

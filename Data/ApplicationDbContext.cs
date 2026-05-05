@@ -14,6 +14,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Release> Releases { get; set; }
     public DbSet<DiscogsReleaseToUser> DiscogsReleaseToUsers { get; set; }
     public DbSet<DiscogsReleaseImages> DiscogsReleaseImages { get; set; }
+    public DbSet<Artist> Artists { get; set; }
+    public DbSet<Label> Labels { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

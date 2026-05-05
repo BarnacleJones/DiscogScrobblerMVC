@@ -37,7 +37,9 @@ public class DiscogsService : IDiscogsService
         const int perPage = 100;
         var hasMore = true;
 
-        var seenIds = new HashSet<int>();
+        var artistCache = await _db.Artists.ToDictionaryAsync(a => a.Name);
+        var labelCache  = await _db.Labels.ToDictionaryAsync(l => l.Name);
+        var seenIds     = new HashSet<int>();
 
         while (hasMore)
         {
@@ -45,7 +47,7 @@ public class DiscogsService : IDiscogsService
 
             foreach (var item in releases)
             {
-                await UpsertCollectionItem(userId, item, seenIds);
+                await UpsertCollectionItem(userId, item, seenIds, artistCache, labelCache);
             }
 
             await _db.SaveChangesAsync();
@@ -58,7 +60,12 @@ public class DiscogsService : IDiscogsService
         _logger.LogInformation("Discogs sync complete for {Username}", discogsUsername);
     }
 
-    private async Task UpsertCollectionItem(string userId, CollectionFolderRelease item, HashSet<int> seenIds)
+    private async Task UpsertCollectionItem(
+        string userId,
+        CollectionFolderRelease item,
+        HashSet<int> seenIds,
+        Dictionary<string, Artist> artistCache,
+        Dictionary<string, Label> labelCache)
     {
         // Duplicate DiscogsReleaseId within a batch (e.g. same release in two folders) — skip.
         if (!seenIds.Add(item.Id))
@@ -66,11 +73,20 @@ public class DiscogsService : IDiscogsService
 
         var existingRelease = await _db.Releases
             .Include(r => r.Images)
+            .Include(r => r.Artists)
+            .Include(r => r.Labels)
             .FirstOrDefaultAsync(r => r.DiscogsReleaseId == item.Id);
+
+        var artists = ResolveArtists(item, artistCache);
+        var labels  = ResolveLabels(item, labelCache);
 
         if (existingRelease is null)
         {
-            _db.Releases.Add(ConstructNewReleaseEntity(item));
+            var release = ConstructNewReleaseEntity(item);
+            foreach (var a in artists) release.Artists.Add(a);
+            foreach (var l in labels)  release.Labels.Add(l);
+
+            _db.Releases.Add(release);
             _db.DiscogsReleaseImages.Add(new DiscogsReleaseImages
             {
                 DiscogsReleaseId = item.Id,
@@ -104,27 +120,49 @@ public class DiscogsService : IDiscogsService
         }
     }
 
+    private List<Artist> ResolveArtists(CollectionFolderRelease item, Dictionary<string, Artist> cache)
+    {
+        var result = new List<Artist>();
+        foreach (var apiArtist in item.Release.Artists)
+        {
+            var name = apiArtist.Name?.Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            if (!cache.TryGetValue(name, out var artist))
+            {
+                artist = new Artist { Name = name };
+                cache[name] = artist;
+                _db.Artists.Add(artist);
+            }
+            result.Add(artist);
+        }
+        return result;
+    }
+
+    private List<Label> ResolveLabels(CollectionFolderRelease item, Dictionary<string, Label> cache)
+    {
+        var result = new List<Label>();
+        foreach (var apiLabel in item.Release.Labels)
+        {
+            var name = apiLabel.Name?.Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            if (!cache.TryGetValue(name, out var label))
+            {
+                label = new Label { Name = name };
+                cache[name] = label;
+                _db.Labels.Add(label);
+            }
+            result.Add(label);
+        }
+        return result;
+    }
+
     private static Release ConstructNewReleaseEntity(CollectionFolderRelease item)
     {
-        var releaseInformation = item.Release;
-
-        // Labels → take the first todo: maybe a joining table if this is annoying
-        var label = releaseInformation.Labels.FirstOrDefault()?.Name;
-
-        // Formats → take the first todo: maybe a joining table if this is annoying
-        var format = releaseInformation.Formats.FirstOrDefault()?.Name;
-
-        // Artist — join multiple todo: maybe a joining table if this is annoying
-        var artistName = string.Join(", ", releaseInformation.Artists);
-
         return new Release
         {
             DiscogsReleaseId = item.Id,
-            Artist = artistName,
-            Album = releaseInformation.Title,
-            Year = releaseInformation.Year,
-            Format = format,
-            RecordLabel = label,
+            Album = item.Release.Title,
+            Year = item.Release.Year,
         };
     }
 
@@ -133,17 +171,20 @@ public class DiscogsService : IDiscogsService
         var usersWithDiscogsUsernames = await _db.Users.Where(x => x.DiscogsUsername != null)
             .ToListAsync(ct);
 
+        var artistCache = await _db.Artists.ToDictionaryAsync(a => a.Name, cancellationToken: ct);
+        var labelCache  = await _db.Labels.ToDictionaryAsync(l => l.Name, cancellationToken: ct);
+
         foreach (var user in usersWithDiscogsUsernames)
         {
             if (user.DiscogsUsername.IsNullOrEmpty())
                 continue;
 
+            var seenIds = new HashSet<int>();
             var response = await _discogsApiClient.GetCollectionFolderReleases(user.DiscogsUsername!, 0, cancellationToken: ct);
 
-            var seenIds = new HashSet<int>();
             foreach (var item in response!.Releases)
             {
-                await UpsertCollectionItem(user.Id, item, seenIds);
+                await UpsertCollectionItem(user.Id, item, seenIds, artistCache, labelCache);
             }
 
             // Be polite
