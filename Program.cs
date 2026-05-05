@@ -3,6 +3,7 @@ using DiscogsApiClient;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DiscogScrobblerMVC.Data;
+using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Services;
 using Hqub.Lastfm;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -27,7 +28,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 //Local settings with API secrets not checked in
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
+builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
 builder.Services.AddDiscogsApiClient(options =>
