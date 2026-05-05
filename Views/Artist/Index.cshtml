@@ -1,0 +1,60 @@
+@model DiscogScrobblerMVC.Models.ArtistViewModel
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="section-label mt-3">Artist</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+        <div class="card">
+
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">@Model.Name</div>
+            </div>
+
+            @if (Model.ImageUrl is not null)
+            {
+                <img class="album-cover"
+                     src="@Model.ImageUrl"
+                     alt="@Model.Name" />
+            }
+
+            <div class="card-body pt-2">
+
+                @if (!string.IsNullOrWhiteSpace(Model.Profile))
+                {
+                    <p class="profile-text">@Model.Profile</p>
+                }
+
+                @if (Model.CollectionReleases.Any())
+                {
+                    <div class="section-sub">In your collection</div>
+                    <div class="release-grid">
+                        @foreach (var release in Model.CollectionReleases)
+                        {
+                            <a class="release-mini-card" href="/release/@release.ReleaseId">
+                                @if (release.CoverUrl is not null)
+                                {
+                                    <img src="@release.CoverUrl" alt="@release.Album cover" />
+                                }
+                                else
+                                {
+                                    <div style="aspect-ratio:1/1;background:var(--bg3);display:flex;align-items:center;justify-content:center;">
+                                        <span style="font-size:10px;color:var(--txt3)">no cover</span>
+                                    </div>
+                                }
+                                <div class="release-mini-card-info">
+                                    <div class="release-mini-title">@release.Album</div>
+                                    <div class="release-mini-year">@release.Year</div>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+</div>

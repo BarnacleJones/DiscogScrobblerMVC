@@ -105,12 +105,19 @@ namespace DiscogScrobblerMVC.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("DiscogsArtistId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DiscogsArtistId")
+                        .IsUnique()
+                        .HasFilter("\"DiscogsArtistId\" IS NOT NULL");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -173,12 +180,19 @@ namespace DiscogScrobblerMVC.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("DiscogsLabelId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DiscogsLabelId")
+                        .IsUnique()
+                        .HasFilter("\"DiscogsLabelId\" IS NOT NULL");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -200,6 +214,12 @@ namespace DiscogScrobblerMVC.Migrations
                     b.Property<int>("DiscogsReleaseId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Genres")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Styles")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Year")
                         .HasColumnType("INTEGER");
 
@@ -209,6 +229,36 @@ namespace DiscogScrobblerMVC.Migrations
                         .IsUnique();
 
                     b.ToTable("Releases");
+                });
+
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Track", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Duration")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ReleaseId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReleaseId", "Position");
+
+                    b.ToTable("Tracks");
                 });
 
             modelBuilder.Entity("LabelRelease", b =>
@@ -397,6 +447,17 @@ namespace DiscogScrobblerMVC.Migrations
                     b.Navigation("Release");
                 });
 
+            modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Track", b =>
+                {
+                    b.HasOne("DiscogScrobblerMVC.Data.Entities.Release", "Release")
+                        .WithMany("Tracks")
+                        .HasForeignKey("ReleaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Release");
+                });
+
             modelBuilder.Entity("LabelRelease", b =>
                 {
                     b.HasOne("DiscogScrobblerMVC.Data.Entities.Label", null)
@@ -466,6 +527,8 @@ namespace DiscogScrobblerMVC.Migrations
             modelBuilder.Entity("DiscogScrobblerMVC.Data.Entities.Release", b =>
                 {
                     b.Navigation("Images");
+
+                    b.Navigation("Tracks");
 
                     b.Navigation("UserAssociations");
                 });

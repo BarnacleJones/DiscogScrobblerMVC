@@ -46,6 +46,7 @@ public class DiscogsBackgroundService : BackgroundService
         _logger.LogInformation("Starting Discogs sync at {Time}", DateTimeOffset.Now);
 
         await discogsService.SyncCollectionInBackground(ct);
+        await discogsService.SyncReleaseDetails(ct);
         await discogsService.DownloadMissingImages(ct);
 
         _logger.LogInformation("Discogs sync complete at {Time}", DateTimeOffset.Now);

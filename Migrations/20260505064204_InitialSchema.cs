@@ -17,6 +17,7 @@ namespace DiscogScrobblerMVC.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    DiscogsArtistId = table.Column<int>(type: "INTEGER", nullable: true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false)
                 },
                 constraints: table =>
@@ -70,6 +71,7 @@ namespace DiscogScrobblerMVC.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    DiscogsLabelId = table.Column<int>(type: "INTEGER", nullable: true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false)
                 },
                 constraints: table =>
@@ -85,7 +87,9 @@ namespace DiscogScrobblerMVC.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     DiscogsReleaseId = table.Column<int>(type: "INTEGER", nullable: false),
                     Album = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
-                    Year = table.Column<int>(type: "INTEGER", nullable: false)
+                    Year = table.Column<int>(type: "INTEGER", nullable: false),
+                    Genres = table.Column<string>(type: "TEXT", nullable: true),
+                    Styles = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -289,10 +293,39 @@ namespace DiscogScrobblerMVC.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "Tracks",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ReleaseId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Position = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    Title = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
+                    Duration = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Tracks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Tracks_Releases_ReleaseId",
+                        column: x => x.ReleaseId,
+                        principalTable: "Releases",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_ArtistRelease_ReleasesId",
                 table: "ArtistRelease",
                 column: "ReleasesId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Artists_DiscogsArtistId",
+                table: "Artists",
+                column: "DiscogsArtistId",
+                unique: true,
+                filter: "\"DiscogsArtistId\" IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Artists_Name",
@@ -355,6 +388,13 @@ namespace DiscogScrobblerMVC.Migrations
                 column: "ReleasesId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Labels_DiscogsLabelId",
+                table: "Labels",
+                column: "DiscogsLabelId",
+                unique: true,
+                filter: "\"DiscogsLabelId\" IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Labels_Name",
                 table: "Labels",
                 column: "Name",
@@ -365,6 +405,11 @@ namespace DiscogScrobblerMVC.Migrations
                 table: "Releases",
                 column: "DiscogsReleaseId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tracks_ReleaseId_Position",
+                table: "Tracks",
+                columns: new[] { "ReleaseId", "Position" });
         }
 
         /// <inheritdoc />
@@ -396,6 +441,9 @@ namespace DiscogScrobblerMVC.Migrations
 
             migrationBuilder.DropTable(
                 name: "LabelRelease");
+
+            migrationBuilder.DropTable(
+                name: "Tracks");
 
             migrationBuilder.DropTable(
                 name: "Artists");

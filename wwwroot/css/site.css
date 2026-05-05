@@ -490,5 +490,71 @@ details[open] .tracklist-toggle::before { transform: rotate(90deg); }
 .track-title { color: var(--txt); }
 .track-dur  { color: var(--txt3); text-align: right; white-space: nowrap; width: 44px; }
 
+/* ─── Profile text (artist/label bio) ───────────────── */
+.profile-text {
+  font-size: 12px;
+  color: var(--txt2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* ─── Release card grid (artist/label pages) ─────────── */
+.release-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.release-mini-card {
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-decoration: none;
+  display: block;
+  transition: border-color 0.15s;
+}
+.release-mini-card:hover { border-color: var(--line2); }
+.release-mini-card img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  display: block;
+}
+.release-mini-card-info {
+  padding: 6px 8px;
+}
+.release-mini-title {
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.release-mini-year {
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+/* ─── Section sub-heading ─────────────────────────────── */
+.section-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--txt3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+}
+
 /* ─── Validation ─────────────────────────────────────── */
 .text-danger, .field-validation-error { color: var(--coral) !important; font-size: 11px; }

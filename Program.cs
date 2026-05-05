@@ -39,6 +39,9 @@ builder.Services.AddDiscogsApiClient(options =>
 });
 
 builder.Services.AddScoped<IDiscogsService, DiscogsService>();
+builder.Services.AddScoped<IReleaseService, ReleaseService>();
+builder.Services.AddScoped<IArtistService, ArtistService>();
+builder.Services.AddScoped<ILabelService, LabelService>();
 builder.Services.AddHostedService<DiscogsBackgroundService>();
 // builder.Services.AddSingleton(sp =>
 //     new LastfmClient(

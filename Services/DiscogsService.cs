@@ -129,7 +129,7 @@ public class DiscogsService : IDiscogsService
             if (string.IsNullOrEmpty(name)) continue;
             if (!cache.TryGetValue(name, out var artist))
             {
-                artist = new Artist { Name = name };
+                artist = new Artist { Name = name, DiscogsArtistId = apiArtist.Id };
                 cache[name] = artist;
                 _db.Artists.Add(artist);
             }
@@ -147,7 +147,7 @@ public class DiscogsService : IDiscogsService
             if (string.IsNullOrEmpty(name)) continue;
             if (!cache.TryGetValue(name, out var label))
             {
-                label = new Label { Name = name };
+                label = new Label { Name = name, DiscogsLabelId = apiLabel.Id };
                 cache[name] = label;
                 _db.Labels.Add(label);
             }
@@ -219,6 +219,48 @@ public class DiscogsService : IDiscogsService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to download image for album {0} with release id {1}", image.Release.Album, image.DiscogsReleaseId);
+            }
+        }
+    }
+
+    public async Task SyncReleaseDetails(CancellationToken ct)
+    {
+        var releasesWithoutDetails = await _db.Releases
+            .Where(r => !r.Tracks.Any())
+            .ToListAsync(ct);
+
+        foreach (var release in releasesWithoutDetails)
+        {
+            try
+            {
+                var details = await _discogsApiClient.GetRelease(release.DiscogsReleaseId, ct);
+
+                release.Genres = details.Genres is { Count: > 0 }
+                    ? string.Join(", ", details.Genres) : null;
+                release.Styles = details.Styles is { Count: > 0 }
+                    ? string.Join(", ", details.Styles) : null;
+
+                foreach (var t in details.Tracklist.Where(t => t.Type == "track"))
+                {
+                    _db.Tracks.Add(new Track
+                    {
+                        ReleaseId = release.Id,
+                        Position = t.Position,
+                        Title = t.Title,
+                        Duration = t.Duration,
+                    });
+                }
+
+                await _db.SaveChangesAsync(ct);
+
+                _logger.LogInformation("Synced details for {Album} ({DiscogsReleaseId})", release.Album, release.DiscogsReleaseId);
+
+                // Be polite
+                await Task.Delay(1100, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to sync details for {Album} ({DiscogsReleaseId})", release.Album, release.DiscogsReleaseId);
             }
         }
     }
