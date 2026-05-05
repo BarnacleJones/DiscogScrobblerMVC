@@ -22,7 +22,7 @@ public class HomeController : Controller
         var userId = "b;a";
         var discogsUsername = /* load from user profile/claim */ "";
 
-        await _discogsService.SyncCollectionAsync(discogsUsername, userId);
+        await _discogsService.SyncCollection(discogsUsername, userId);
         
         return View();
     }

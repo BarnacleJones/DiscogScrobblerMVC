@@ -1,12 +1,8 @@
 // Services/LastFmService.cs
+
+using DiscogScrobblerMVC.Services;
 using Hqub.Lastfm;
 using Hqub.Lastfm.Entities;
-
-public interface ILastFmService
-{
-    Task<bool> AuthenticateAsync(string username, string password);
-    Task<bool> ScrobbleAlbumAsync(string artist, string album, IList<string> trackNames);
-}
 
 public class LastFmService : ILastFmService
 {

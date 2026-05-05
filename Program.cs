@@ -1,11 +1,22 @@
-using System.Net.Http.Headers;
+using Serilog;
+using DiscogsApiClient;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Services;
 using Hqub.Lastfm;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 
 var builder = WebApplication.CreateBuilder(args);
+
+//Add logging
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -13,28 +24,29 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+//Local settings with API secrets not checked in
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-builder.Services.AddHttpClient<IDiscogsService, DiscogsService>(client =>
+builder.Services.AddDiscogsApiClient(options =>
 {
-    client.BaseAddress = new Uri("https://api.discogs.com/");
-    // Required by Discogs — must identify your app
-    client.DefaultRequestHeaders.UserAgent
-        .ParseAdd("DiscogScrobblerMVC/1.0 +https://yourdomain.com");
-    // Personal token from appsettings
-    var token = builder.Configuration["Discogs:PersonalToken"];
-    client.DefaultRequestHeaders.Authorization =
-        new AuthenticationHeaderValue("Discogs", $"token={token}");
+    options.UserAgent = "DiscogScrobblerMVC";
+    options.ConsumerKey = builder.Configuration["Discogs:ConsumerKey"] ?? throw new InvalidOperationException("NO Discogs Consumer Key");
+    options.ConsumerSecret = builder.Configuration["Discogs:ConsumerSecret"] ?? throw new InvalidOperationException("NO Discogs Consumer Secret");
 });
 
-builder.Services.AddSingleton(sp =>
-    new LastfmClient(
-        builder.Configuration["LastFm:ApiKey"]!,
-        builder.Configuration["LastFm:ApiSecret"]!
-    )
-);
-builder.Services.AddScoped<ILastFmService, LastFmService>();
+builder.Services.AddScoped<IDiscogsService, DiscogsService>();
+
+builder.Services.AddHostedService<DiscogsBackgroundService>();
+// builder.Services.AddSingleton(sp =>
+//     new LastfmClient(
+//         builder.Configuration["LastFm:ApiKey"]!,
+//         builder.Configuration["LastFm:ApiSecret"]!
+//     )
+// );
+// builder.Services.AddScoped<ILastFmService, LastFmService>();
 
 builder.Services.AddControllersWithViews();
 
