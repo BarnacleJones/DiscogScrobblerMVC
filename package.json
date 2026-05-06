@@ -1,0 +1,34 @@
+{
+  "name": "discogscrobblermvc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node Scripts/vendor-copy.mjs",
+    "build": "esbuild Scripts/home.ts Scripts/release.ts Scripts/collection.ts Scripts/tracks.ts Scripts/stats.ts Scripts/settings.ts --bundle --outdir=wwwroot/js --platform=browser",
+    "watch": "esbuild Scripts/home.ts Scripts/release.ts Scripts/collection.ts Scripts/tracks.ts Scripts/stats.ts Scripts/settings.ts --bundle --outdir=wwwroot/js --platform=browser --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BarnacleJones/DiscogScrobblerMVC.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BarnacleJones/DiscogScrobblerMVC/issues"
+  },
+  "homepage": "https://github.com/BarnacleJones/DiscogScrobblerMVC#readme",
+  "dependencies": {
+    "bootstrap-icons": "^1.13.1",
+    "chart.js": "^4.5.0",
+    "datatables.net": "^2.3.2",
+    "datatables.net-bs5": "^2.3.2"
+  },
+  "devDependencies": {
+    "@types/datatables.net": "^1.12.3",
+    "@types/jquery": "^4.0.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3"
+  }
+}

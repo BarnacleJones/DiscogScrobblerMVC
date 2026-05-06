@@ -1,0 +1,173 @@
+@model ReleaseViewModel
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+        <div class="card">
+
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">@Model.Album</div>
+                @if (Model.Artists.Count != 0)
+                {
+                    <div class="mt-2 small info-muted">
+                        @for (var i = 0; i < Model.Artists.Count; i++)
+                        {
+                            var a = Model.Artists[i];
+                            if (i > 0)
+                            {
+                                <span class="info-sep">,</span>
+                            }
+                            <a asp-controller="Artist" asp-action="Index" asp-route-id="@a.Id">@a.Name</a>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.CoverUrl))
+            {
+                <img class="album-cover"
+                     src="@Model.CoverUrl"
+                     alt="@Model.Album" />
+            }
+
+            <div class="card-body pt-3">
+
+                <div class="d-flex gap-2 flex-wrap mb-3">
+                    <button type="button"
+                            class="btn btn-primary scrobble-btn"
+                            data-release-id="@Model.ReleaseId">
+                        Scrobble album
+                    </button>
+                    <a class="btn btn-outline-secondary"
+                       href="https://www.discogs.com/release/@Model.ReleaseId"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        Discogs release
+                    </a>
+                    @if (Model.DiscogsMasterId is { } masterId)
+                    {
+                        <a class="btn btn-outline-secondary"
+                           href="https://www.discogs.com/master/@masterId"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                            Discogs master
+                        </a>
+                    }
+                </div>
+
+                <div class="info-row info-row--stat">
+                    <span class="info-label">Year</span>
+                    <span class="info-value">
+                        @if (Model.Year is { } year)
+                        {
+                            <a asp-controller="Collection" asp-action="Index" asp-route-q="@year">@year</a>
+                        }
+                        else
+                        {
+                            @:—
+                        }
+                    </span>
+                </div>
+
+                <div class="info-row info-row--stat">
+                    <span class="info-label"><i class="bi bi-collection info-icon" aria-hidden="true"></i> Have</span>
+                    <span class="info-value">@Model.Have.ToString("N0")</span>
+                </div>
+
+                <div class="info-row info-row--stat">
+                    <span class="info-label"><i class="bi bi-bookmark-heart info-icon" aria-hidden="true"></i> Want</span>
+                    <span class="info-value">@Model.Want.ToString("N0")</span>
+                </div>
+
+                @if (Model.Labels.Count != 0)
+                {
+                    <div class="info-row">
+                        <span class="info-label">Labels</span>
+                        <span class="info-value">
+                            @for (var i = 0; i < Model.Labels.Count; i++)
+                            {
+                                var l = Model.Labels[i];
+                                if (i > 0)
+                                {
+                                    <span class="info-sep">·</span>
+                                }
+                                <a asp-controller="Label" asp-action="Index" asp-route-id="@l.Id">@l.Name</a>
+                            }
+                        </span>
+                    </div>
+                }
+
+                @if (Model.Genres.Count != 0)
+                {
+                    <div class="info-row">
+                        <span class="info-label">Genres</span>
+                        <span class="info-value">
+                            @for (var i = 0; i < Model.Genres.Count; i++)
+                            {
+                                var g = Model.Genres[i];
+                                if (i > 0)
+                                {
+                                    <span class="info-sep">·</span>
+                                }
+                                <a asp-controller="CollectionBrowse" asp-action="Genre" asp-route-id="@g.Id">@g.Name</a>
+                            }
+                        </span>
+                    </div>
+                }
+
+                @if (Model.Styles.Count != 0)
+                {
+                    <div class="info-row">
+                        <span class="info-label">Styles</span>
+                        <span class="info-value">
+                            @for (var i = 0; i < Model.Styles.Count; i++)
+                            {
+                                var s = Model.Styles[i];
+                                if (i > 0)
+                                {
+                                    <span class="info-sep">·</span>
+                                }
+                                <a asp-controller="CollectionBrowse" asp-action="Style" asp-route-id="@s.Id">@s.Name</a>
+                            }
+                        </span>
+                    </div>
+                }
+
+                @if (Model.Tracklist.Count != 0)
+                {
+                    <details class="tracklist" open>
+                        <summary class="tracklist-toggle">
+                            Tracklist
+                            <span class="tracklist-count">@Model.Tracklist.Count tracks</span>
+                        </summary>
+                        <table class="table table-borderless tracklist-table mb-0">
+                            <tbody>
+                            @foreach (var t in Model.Tracklist)
+                            {
+                                <tr>
+                                    <td class="track-pos">@t.Position</td>
+                                    <td class="track-title">@t.Title</td>
+                                    <td class="track-dur">
+                                        @if (!string.IsNullOrWhiteSpace(t.Duration))
+                                        {
+                                            <a asp-controller="Tracks" asp-action="Index" asp-route-q="@t.Duration">@t.Duration</a>
+                                        }
+                                        else
+                                        {
+                                            @(t.Duration ?? "")
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </details>
+                }
+                else
+                {
+                    <p class="text-secondary small mb-0 mt-2">No tracklist stored yet — run a collection sync or wait for background detail import.</p>
+                }
+
+            </div>
+        </div>
+    </div>
+</div>

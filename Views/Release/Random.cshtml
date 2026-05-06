@@ -1,0 +1,57 @@
+@model ReleaseViewModel?
+
+@{
+    ViewData["Title"] = "Random release";
+}
+
+<div class="section-label mt-3">Random release</div>
+
+<div class="row justify-content-center mb-3">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6 d-grid gap-2">
+        <a class="btn btn-primary"
+           asp-controller="Release"
+           asp-action="Random"
+           data-random-release-link>
+            Random release
+        </a>
+        <button type="button"
+                class="btn random-dice-button"
+                data-random-dice-button>
+            Random Release Dice
+        </button>
+    </div>
+</div>
+
+<div data-random-release-card>
+    @if (Model is null)
+    {
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+                <div class="alert alert-secondary mb-0" role="alert">
+                    No releases are available yet. Sync your collection, then try again.
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <partial name="_ReleaseCard" model="Model" />
+    }
+</div>
+
+<div class="row justify-content-center d-none"
+     data-random-dice
+     data-random-dice-url="@Url.Action("RandomDice", "Release")"
+     data-cover-fallback="/images/placeholder-cover.svg">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+        <div class="random-dice-grid" data-random-dice-grid></div>
+        <div class="alert alert-secondary d-none mt-3 mb-0" role="alert" data-random-dice-empty>
+            No releases are available yet. Sync your collection, then try again.
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="~/vendor/bootstrap-icons/bootstrap-icons.min.css" asp-append-version="true" />
+    <script src="~/js/release.js" asp-append-version="true"></script>
+}

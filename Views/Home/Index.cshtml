@@ -1,0 +1,79 @@
+﻿@model HomeIndexViewModel
+@{
+    ViewData["Title"] = "Collection";
+    var coverFallback = "/images/placeholder-cover.svg";
+}
+
+<div class="section-label">Recent additions</div>
+
+@if (!Model.IsAuthenticated)
+{
+    <div class="alert auth-banner mt-3" role="alert">
+        <p class="mb-2">Sign in to see the latest releases added to your Discogs collection.</p>
+        <a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Login">Log in</a>
+        <span class="text-secondary mx-2">or</span>
+        <a class="btn btn-outline-secondary" asp-area="Identity" asp-page="/Account/Register">Register</a>
+    </div>
+}
+else if (!Model.RecentReleases.Any())
+{
+    <p class="text-secondary mt-3">Nothing here yet. Releases show up after your collection is synced from Discogs.</p>
+    <p class="text-secondary mt-3">(Add username in settings and 'Sync entire collection')</p>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var r in Model.RecentReleases)
+        {
+            var cover = string.IsNullOrWhiteSpace(r.CoverUrl) ? coverFallback : r.CoverUrl;
+            <div class="col-6 col-sm-4">
+                <div class="card h-100">
+                    <a asp-controller="Release" asp-action="Index" asp-route-id="@r.ReleaseId" tabindex="-1" aria-hidden="true">
+                        <img class="album-cover"
+                             src="@cover"
+                             alt="@r.Album"
+                             loading="lazy"
+                             decoding="async" />
+                    </a>
+                    <div class="card-body d-flex flex-column gap-2">
+                        <div>
+                            <div class="card-title">
+                                <a asp-controller="Release" asp-action="Index" asp-route-id="@r.ReleaseId">@r.Album</a>
+                            </div>
+                            <div class="card-subtitle">
+                                @if (r.Artists.Count > 0)
+                                {
+                                    @for (var i = 0; i < r.Artists.Count; i++)
+                                    {
+                                        var a = r.Artists[i];
+                                        if (i > 0)
+                                        {
+                                            <span class="text-secondary">,</span>
+                                        }
+                                        <a asp-controller="Artist" asp-action="Index" asp-route-id="@a.Id">@a.Name</a>
+                                    }
+                                }
+                                else
+                                {
+                                    @r.ArtistDisplay
+                                }
+                            </div>
+                        </div>
+                        <div class="mt-auto d-flex flex-column gap-1">
+                            <button type="button" class="btn btn-primary w-100 scrobble-btn" data-release-id="@r.ReleaseId">Scrobble</button>
+                            <a asp-controller="Release" asp-action="Index" asp-route-id="@r.ReleaseId" class="btn btn-outline-secondary w-100">Go to release</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    @if (Model.IsAuthenticated && Model.RecentReleases.Any())
+    {
+        <link rel="stylesheet" href="~/vendor/bootstrap-icons/bootstrap-icons.min.css" asp-append-version="true" />
+        <script src="~/js/home.js"></script>
+    }
+}

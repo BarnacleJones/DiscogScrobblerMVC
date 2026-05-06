@@ -1,0 +1,29 @@
+@model IEnumerable<DiscogScrobblerMVC.Models.CollectionReleaseCardViewModel>
+
+<div class="release-grid">
+    @foreach (var release in Model)
+    {
+        <a class="release-mini-card"
+           asp-controller="Release"
+           asp-action="Index"
+           asp-route-id="@release.ReleaseId">
+            @if (release.CoverUrl is not null)
+            {
+                <img src="@release.CoverUrl"
+                     alt="@release.Album cover"
+                     loading="lazy"
+                     decoding="async" />
+            }
+            else
+            {
+                <div class="release-mini-cover-placeholder">
+                    <span class="release-mini-cover-placeholder-text">no cover</span>
+                </div>
+            }
+            <div class="release-mini-card-info">
+                <div class="release-mini-title">@release.Album</div>
+                <div class="release-mini-year">@(release.Year?.ToString() ?? "—")</div>
+            </div>
+        </a>
+    }
+</div>

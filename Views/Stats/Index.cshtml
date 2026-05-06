@@ -1,0 +1,155 @@
+@using System.Text.Json
+@model StatsViewModel
+@{
+    ViewData["Title"] = "Stats";
+
+    string FormatTrackSeconds(double? avg)
+    {
+        if (avg is null) return "—";
+        var total = (int)Math.Round(avg.Value);
+        var mm = total / 60;
+        var ss = total % 60;
+        return $"{mm}:{ss:D2}";
+    }
+
+    string FormatDecimal(double? value, int digits = 1)
+        => value is null ? "—" : value.Value.ToString("F" + digits);
+
+    // Embed JSON for chart bindings into data-* attrs so stats.ts can render them
+    // without inline scripts (CSP-friendly and consistent with our other pages).
+    var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    string Json<T>(T data) => JsonSerializer.Serialize(data, jsonOptions);
+}
+
+<div class="section-label mt-3">Stats</div>
+
+@if (!Model.HasAnyReleases)
+{
+    <div class="alert stats-empty-banner border-0 mt-3" role="alert">
+        <p class="mb-2">Nothing to summarise yet — sync your Discogs collection first.</p>
+        <a class="btn btn-outline-primary" asp-controller="Settings" asp-action="Index">Go to settings</a>
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="stat-label">Average track length</div>
+                    <div class="stat-value">@FormatTrackSeconds(Model.AverageTrackSeconds)</div>
+                    <div class="stat-sub">
+                        @if (Model.AverageTrackSeconds is null)
+                        {
+                            <span>No track durations known yet.</span>
+                        }
+                        else
+                        {
+                            <span>n = @Model.TrackDurationSampleSize / @Model.TotalTracks tracks with known length</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="stat-label">Average tracks per release</div>
+                    <div class="stat-value">@FormatDecimal(Model.AverageTracksPerRelease)</div>
+                    <div class="stat-sub">
+                        <span>@Model.OwnedReleaseCount releases · @Model.TotalTracks tracks</span>
+                        @if (Model.PendingReleaseCount > 0)
+                        {
+                            <div class="stat-pending">syncing @Model.PendingReleaseCount release@(Model.PendingReleaseCount == 1 ? "" : "s")…</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="stat-label">Band-name letter distribution</div>
+                    <div class="stat-sub">distinct artists per first letter — non-A–Z folds into #</div>
+                    <div class="chart-wrap chart-wrap-tall mt-2">
+                        <canvas id="lettersChart"
+                                data-stats-letters="@Json(Model.LetterDistribution)"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="stat-label">Top styles</div>
+                    <div class="chart-wrap chart-wrap-tall mt-2">
+                        <canvas id="stylesChart"
+                                data-stats-bars="@Json(Model.TopStyles)"></canvas>
+                    </div>
+                    @if (Model.TopStyles.Count == 0)
+                    {
+                        <div class="stat-sub mt-2">No styles ingested yet.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="stat-label">Top genres</div>
+                    <div class="chart-wrap chart-wrap-tall mt-2">
+                        <canvas id="genresChart"
+                                data-stats-bars="@Json(Model.TopGenres)"></canvas>
+                    </div>
+                    @if (Model.TopGenres.Count == 0)
+                    {
+                        <div class="stat-sub mt-2">No genres ingested yet.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="stat-label">Top 10 artists</div>
+                    <div class="stat-sub">by releases owned</div>
+                    <div class="chart-wrap chart-wrap-tall mt-2">
+                        <canvas id="artistsChart"
+                                data-stats-artists="@Json(Model.TopArtists)"></canvas>
+                    </div>
+                    @if (Model.VariousReleaseCount > 0)
+                    {
+                        <div class="stat-sub mt-2">
+                            Various omitted (@Model.VariousReleaseCount release@(Model.VariousReleaseCount == 1 ? "" : "s"))
+                        </div>
+                    }
+                    @if (Model.TopArtists.Count > 0)
+                    {
+                        <ul class="top-artist-list mt-2">
+                            @foreach (var a in Model.TopArtists)
+                            {
+                                <li>
+                                    <a asp-controller="Artist" asp-action="Index" asp-route-id="@a.Id">@a.Name</a>
+                                    <span class="top-artist-count">@a.ReleaseCount</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (Model.HasAnyReleases)
+    {
+        <script src="~/vendor/chartjs/chart.umd.min.js" asp-append-version="true"></script>
+        <script src="~/js/stats.js" asp-append-version="true"></script>
+    }
+}

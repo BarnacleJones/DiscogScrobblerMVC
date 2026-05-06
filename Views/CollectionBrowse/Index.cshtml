@@ -1,0 +1,31 @@
+@model DiscogScrobblerMVC.Models.CollectionBrowseViewModel
+
+@{
+    ViewData["Title"] = $"{Model.ValueTitle} · {Model.DimensionLabel}";
+}
+
+<div class="section-label mt-3">@Model.DimensionLabel</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+        <div class="card">
+
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">@Model.ValueTitle</div>
+            </div>
+
+            <div class="card-body pt-2">
+                @if (!Model.Releases.Any())
+                {
+                    <p class="text-secondary mt-1 mb-0 small">Nothing in your collection matches this @Model.DimensionLabel.ToLowerInvariant().</p>
+                }
+                else
+                {
+                    <div class="section-sub">In your collection</div>
+                    <partial name="_ReleaseMiniGrid" model="Model.Releases" />
+                }
+
+            </div>
+        </div>
+    </div>
+</div>

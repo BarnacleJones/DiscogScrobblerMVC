@@ -1,0 +1,13 @@
+@model ReleaseViewModel
+
+@{
+    ViewData["Title"] = Model.Album;
+}
+
+<div class="section-label mt-3">Release</div>
+<partial name="_ReleaseCard" model="Model" />
+
+@section Scripts {
+    <link rel="stylesheet" href="~/vendor/bootstrap-icons/bootstrap-icons.min.css" asp-append-version="true" />
+    <script src="~/js/release.js" asp-append-version="true"></script>
+}

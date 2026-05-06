@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Tracks";
+}
+
+<div class="section-label mt-3">Tracks</div>
+
+<div class="d-flex align-items-center justify-content-center justify-content-sm-start gap-2 mt-2 mb-2">
+    <button id="clearTracksFilterBtn" type="button" class="btn btn-outline-secondary btn-sm">
+        Clear filter
+    </button>
+</div>
+
+<table id="tracksTable" class="table table-hover w-100">
+    <thead>
+        <tr>
+            <th></th>
+            <th>Pos</th>
+            <th>Title</th>
+            <th>Duration</th>
+            <th>Artist</th>
+        </tr>
+    </thead>
+</table>
+
+@section Scripts {
+    <partial name="_DataTablesAssetsPartial" />
+    <script src="~/js/tracks.js"></script>
+}
+

@@ -1,0 +1,65 @@
+@model DiscogScrobblerMVC.Models.CollectionSearchViewModel
+
+<div class="section-label mt-3">Search</div>
+
+@if (string.IsNullOrWhiteSpace(Model.Query))
+{
+    <p class="text-secondary mb-0">Enter an artist or album title to search your collection.</p>
+}
+else if (Model.Artists.Count == 0 && Model.Releases.Count == 0)
+{
+    <p class="text-secondary mb-0">No artists or releases in your collection matched &ldquo;@Model.Query&rdquo;.</p>
+}
+else
+{
+    @if (Model.Artists.Count > 0)
+    {
+        <div class="section-sub mt-2">Artists</div>
+        <ul class="search-result-list list-unstyled mb-4">
+            @foreach (var a in Model.Artists)
+            {
+                <li>
+                    <a asp-controller="Artist"
+                       asp-action="Index"
+                       asp-route-id="@a.Id"
+                       class="search-result-link">@a.Name</a>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (Model.Releases.Count > 0)
+    {
+        <div class="section-sub @(Model.Artists.Count > 0 ? "mt-3" : "mt-2")">Releases</div>
+        <ul class="search-result-list list-unstyled mb-0">
+            @foreach (var r in Model.Releases)
+            {
+                <li>
+                    <a asp-controller="Release"
+                       asp-action="Index"
+                       asp-route-id="@r.ReleaseId"
+                       class="search-result-link search-result-release">
+                        @if (!string.IsNullOrWhiteSpace(r.CoverUrl))
+                        {
+                            <img class="search-result-cover-thumb"
+                                 src="@r.CoverUrl"
+                                 alt=""
+                                 loading="lazy"
+                                 decoding="async"
+                                 width="40"
+                                 height="40" />
+                        }
+                        else
+                        {
+                            <div class="search-result-cover-placeholder" aria-hidden="true"></div>
+                        }
+                        <div class="search-result-release-text">
+                            <span class="search-result-title">@r.Album</span>
+                            <span class="search-result-meta">@r.ArtistDisplay &middot; @(r.Year)</span>
+                        </div>
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+}

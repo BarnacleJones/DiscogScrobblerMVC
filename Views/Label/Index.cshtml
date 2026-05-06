@@ -1,0 +1,40 @@
+@model DiscogScrobblerMVC.Models.LabelViewModel
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="section-label mt-3">Label</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+        <div class="card">
+
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">@Model.Name</div>
+            </div>
+
+            @if (Model.ImageUrl is not null)
+            {
+                <img class="album-cover entity-cover"
+                     src="@Model.ImageUrl"
+                     alt="@Model.Name" />
+            }
+
+            <div class="card-body pt-2">
+
+                @if (!string.IsNullOrWhiteSpace(Model.Profile))
+                {
+                    <p class="profile-text">@Model.Profile</p>
+                }
+
+                @if (Model.CollectionReleases.Any())
+                {
+                    <div class="section-sub">In your collection</div>
+                    <partial name="_ReleaseMiniGrid" model="Model.CollectionReleases" />
+                }
+
+            </div>
+        </div>
+    </div>
+</div>

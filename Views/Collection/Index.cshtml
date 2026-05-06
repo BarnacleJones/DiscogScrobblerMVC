@@ -1,0 +1,48 @@
+@model DiscogScrobblerMVC.Models.CollectionIndexViewModel
+@{
+    ViewData["Title"] = "Collection";
+    var hasEstimate = !string.IsNullOrWhiteSpace(Model.CollectionValueMin)
+        || !string.IsNullOrWhiteSpace(Model.CollectionValueMedian)
+        || !string.IsNullOrWhiteSpace(Model.CollectionValueMax);
+}
+
+<div class="section-label mt-3">Collection</div>
+
+@if (hasEstimate)
+{
+    <div class="alert alert-secondary mt-2 mb-3 py-2 small collection-value-banner" role="status">
+        <span class="fw-semibold">Estimated value (Discogs):</span>
+        <span class="ms-1">Low @Model.CollectionValueMin</span>
+        <span class="text-secondary mx-1">·</span>
+        <span>Median @Model.CollectionValueMedian</span>
+        <span class="text-secondary mx-1">·</span>
+        <span>High @Model.CollectionValueMax</span>
+        @if (Model.CollectionValueFetchedAt is { } fetched)
+        {
+            <span class="text-secondary ms-2">Updated @fetched.ToLocalTime().ToString("d")</span>
+        }
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-center justify-content-sm-start gap-2 mt-2 mb-2">
+    <button id="clearCollectionFilterBtn" type="button" class="btn btn-outline-secondary btn-sm">
+        Clear filter
+    </button>
+</div>
+
+<table id="collectionTable" class="table table-hover w-100">
+    <thead>
+        <tr>
+            <th></th>
+            <th class="collection-cover-col" aria-label="Cover"></th>
+            <th>Artist</th>
+            <th>Album</th>
+            <th>Year</th>
+        </tr>
+    </thead>
+</table>
+
+@section Scripts {
+    <partial name="_DataTablesAssetsPartial" />
+    <script src="~/js/collection.js"></script>
+}

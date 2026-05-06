@@ -1,0 +1,165 @@
+@using System.Text.Json
+@model DiscogScrobblerMVC.Models.SettingsViewModel
+
+@{
+    ViewData["Title"] = "Settings";
+    var initialLastFmCovers = Model.LastFmCoverCandidates.Take(3).ToList();
+    var lastFmCoverCandidatesJson = JsonSerializer.Serialize(Model.LastFmCoverCandidates);
+    var coverFallback = "/images/placeholder-cover.svg";
+}
+
+<div class="section-label mt-3">Settings</div>
+
+<div class="row justify-content-center g-4">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+
+        @if (TempData["StatusMessage"] is string msg && !string.IsNullOrWhiteSpace(msg))
+        {
+            <div class="alert alert-info" role="alert">@msg</div>
+        }
+
+        <div class="card h-100">
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">Discogs</div>
+            </div>
+
+            <div class="card-body pt-2 d-flex flex-column">
+                <form asp-action="Index" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-2">
+                        <label asp-for="DiscogsUsername" class="form-label"></label>
+                        @* new password as browser keeps trying to use my username *@
+                        <input asp-for="DiscogsUsername" class="form-control"  autocomplete="new-password" /> 
+                        <span asp-validation-for="DiscogsUsername" class="text-danger"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </form>
+
+                <form asp-action="SyncDiscogs" method="post" class="mb-2">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-primary">
+                        Sync entire collection
+                    </button>
+                </form>
+
+                <form asp-action="RefreshDiscogsArtistLabelDetails" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary">
+                        Refresh cached artist and label details from Discogs
+                    </button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+
+        <div class="card h-100">
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">Last.fm</div>
+                <div class="text-secondary small mb-0">Web authorization recommended</div>
+            </div>
+
+            <div class="card-body pt-2 d-flex flex-column">
+                @if (!Model.LastFmConfiguredOnServer)
+                {
+                    <p class="text-secondary small mb-3">
+                        The server isn’t configured with a Last.fm <strong>ApiKey</strong> and <strong>ApiSecret</strong> yet —
+                        see <span class="text-nowrap"><code>LastFm</code></span> in <code>appsettings</code>.
+                    </p>
+                }
+                else if (Model.HasPendingLastFmToken && !Model.LastFmConnected)
+                {
+                    <div class="alert alert-warning mb-3" role="alert">
+                        <strong>Last.fm probably won’t return you here.</strong>
+                        Come back to this page and click <strong>Finish linking Last.fm</strong>.
+                    </div>
+                }
+                else if (Model.LastFmConnected && !string.IsNullOrWhiteSpace(Model.LastFmUsername))
+                {
+                    <p class="mb-3">Connected as <strong>@Model.LastFmUsername</strong>.</p>
+                    @if (Model.LastFmCoverCandidates.Count > 0)
+                    {
+                        <div class="lastfm-cover-roll mb-3"
+                             data-lastfm-cover-roll
+                             data-cover-candidates="@lastFmCoverCandidatesJson"
+                             data-cover-fallback="@coverFallback">
+                            <div class="lastfm-cover-roll-header mb-2">
+                                <span class="text-secondary small">Random picks from your collection</span>
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        data-lastfm-reroll>
+                                    Roll covers
+                                </button>
+                            </div>
+                            <div class="lastfm-cover-grid" data-lastfm-cover-grid>
+                                @foreach (var cover in initialLastFmCovers)
+                                {
+                                    <img src="@cover"
+                                         alt="Random album cover"
+                                         class="lastfm-cover-tile"
+                                         loading="lazy"
+                                         decoding="async" />
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+                else if (Model.LastFmConnected)
+                {
+                    <p class="mb-3">Connected.</p>
+                }
+                else
+                {
+                    <div class="alert alert-warning mb-3" role="alert">
+                        <strong>Last.fm probably won’t return you here.</strong>
+                        After you approve in the browser, come back and press the button below.
+                    </div>
+
+                    <details class="small text-secondary mb-3">
+                        <summary class="text-secondary">Callback URL (advanced)</summary>
+                        <div class="mt-2">
+                            <strong class="d-block text-break">@Model.LastFmSuggestedCallbackUri</strong>
+                            <span class="d-block small mt-1">
+                                Paste that into your Last.fm API account callback URL.
+                                If you’re behind Docker/https, set <code>Hosting:PublicBaseUrl</code> so it’s publicly reachable.
+                            </span>
+                        </div>
+                    </details>
+                }
+
+                <div class="d-flex flex-wrap gap-2 mt-auto">
+                    @if (Model.LastFmConfiguredOnServer)
+                    {
+                        if (Model.LastFmConnected)
+                        {
+                            <span class="text-success small align-self-center me-2">Linked</span>
+                        }
+                        @if (!Model.LastFmConnected && Model.HasPendingLastFmToken)
+                        {
+                            <a asp-action="LastFmCallback" class="btn btn-warning">Finish linking Last.fm</a>
+                        }
+                        <a asp-action="ConnectLastFm" class="btn @(Model.LastFmConnected ? "btn-outline-primary" : "btn-primary")">@(Model.LastFmConnected ? "Reconnect" : "Connect")</a>
+
+                        @if (Model.LastFmConnected)
+                        {
+                            <form asp-action="DisconnectLastFm" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-secondary">Disconnect</button>
+                            </form>
+                        }
+                    }
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/settings.js" asp-append-version="true"></script>
+}
