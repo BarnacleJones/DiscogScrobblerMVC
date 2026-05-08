@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Genres";
+}
+
+<div class="section-label mt-3">Genres</div>
+
+<div class="d-flex align-items-center justify-content-center justify-content-sm-start gap-2 mt-2 mb-2">
+    <button id="clearGenresFilterBtn" type="button" class="btn btn-outline-secondary btn-sm">
+        Clear filter
+    </button>
+</div>
+
+<div class="theme-data-grid">
+<table id="genresTable" class="table table-hover w-100">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Releases</th>
+        </tr>
+    </thead>
+</table>
+</div>
+
+@section Scripts {
+    <partial name="_DataTablesAssetsPartial" />
+    <script src="~/js/genres.js" asp-append-version="true"></script>
+}

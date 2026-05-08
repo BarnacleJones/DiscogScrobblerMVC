@@ -1,17 +1,19 @@
 # Docker on Linux — quick setup
 
-Linux server only. Goal: folder on disk → `docker compose up` → site in browser.
+**Who this is for:** You have a Linux PC or small server at home and want a **single folder on disk** that holds config + data. You run one command and open the app in a browser.
+
+**What you’re doing (big picture):** You’ll create a **home for the app** (config files, database, album art). You’ll **download the source code** with Git into a subfolder. **Docker** then builds a **container** (a boxed-up copy of the app) and runs it. You don’t need to install .NET or Node on the host—Docker handles that **inside** the container.
 
 ---
 
 ## Before you start
 
-You need installed on the server:
+Install on the server:
 
-- Docker (with Compose v2 — the `docker compose` command, not the old `docker-compose` plugin mess)
-- Git
+- **Docker** — includes **Compose** so you can use the `docker compose` command (this guide uses that modern style).
+- **Git** — downloads the project from GitHub.
 
-From Ubuntu / Mint-ish:
+On Ubuntu / Mint-style distros you can use:
 
 ```bash
 sudo apt update
@@ -19,17 +21,22 @@ sudo apt install -y docker.io docker-compose-plugin git
 sudo usermod -aG docker "$USER"
 ```
 
-Log out and back in so Docker works without `sudo`.
+**Important:** Log out and log back in (or reboot) after `usermod` so your user can run `docker` without typing `sudo` every time.
 
-You also need Discogs keys: **[discogs.com](https://www.discogs.com)** → Profile → **Settings** → **Developers** — create an app, copy **consumer key / secret**, click **Generate token** for your personal token.
+**Discogs (required for the app to start):** On **[discogs.com](https://www.discogs.com)** go to Profile → **Settings** → **Developers**. Create an app and copy the **consumer key** and **consumer secret**.  
+*(Those two keys go into a config file below. Each person who uses your server still pastes their own **personal token** (“Generate token”) in the app’s **Settings** after they log in—that’s separate.)*
 
-(Optional) Last.fm: **[last.fm/api](https://www.last.fm/api)** — API key + secret if you care about scrobbling.
+**Last.fm (optional):** If you want scrobbling, create an API app on **[last.fm/api](https://www.last.fm/api)** and note the **API key** and **API secret**.
 
 ---
 
-## 1 — Make a folder and clone the repo into it
+## 1 — Make a folder and download the code
 
-Pick a path. Example: `~/docker/DiscogScrobbler`.
+Pick where everything will live. This guide uses:
+
+`~/docker/DiscogScrobbler`
+
+Create a shell and run:
 
 ```bash
 mkdir -p ~/docker/DiscogScrobbler
@@ -37,17 +44,47 @@ cd ~/docker/DiscogScrobbler
 git clone https://github.com/BarnacleJones/DiscogScrobblerMVC.git
 ```
 
-You should see an inner **`DiscogScrobblerMVC/`** project directory when you run `ls`.
+Check what you have:
+
+```bash
+ls
+```
+
+You should see a folder named **`DiscogScrobblerMVC`**. That folder is the **GitHub project** (source code). The **next steps add files beside it**, in the **parent** folder `~/docker/DiscogScrobbler`.
+
+**Mental picture** (you’ll have this layout after a few steps):
+
+```text
+~/docker/DiscogScrobbler/              ← “compose folder”: you run docker compose HERE
+  docker-compose.yml                 ← you will create (step 6)
+  appsettings.Local.json             ← you will create (step 3)
+  .env                               ← you will create (step 4)
+  .dockerignore                      ← optional but recommended (step 5)
+  data/   logs/   images/            ← you will create (step 2)
+  DiscogScrobblerMVC/                ← already here after git clone
+      dockerfile                     ← Docker reads this when building
+      … (rest of the project) …
+```
 
 ---
 
-## 2 — Create runtime folders for data, logs, covers
+## 2 — Folders for data, logs, and cover images
 
-Still in `~/docker/DiscogScrobbler`:
+Stay in **`~/docker/DiscogScrobbler`** (the **parent** folder, not inside `DiscogScrobblerMVC` unless the instructions say so).
 
 ```bash
+cd ~/docker/DiscogScrobbler
 mkdir -p data logs images
 ```
+
+- **`data`** — SQLite database file will live here (mounted to **`/app/data`** in the container).
+- **`logs`** — optional host-side log mount (mapped to **`/app/logs`** in the container).
+- **`images`** — cached album/artist/label pictures (mounted to **`/app/images`**). Under that, the app creates:
+  - One subfolder per **Discogs username** (sanitized for the filesystem).  
+    Exception: usernames **`artists`** or **`labels`** (any capitalization) are **reserved** and won’t get a folder—they’d clash with shared catalog folders.
+  - **`artists/`** and **`labels/`** for shared profile images.
+
+If someone never sets a Discogs username in the app, release art may come straight from Discogs URLs until they do.
 
 ---
 
@@ -59,23 +96,20 @@ Still in **`~/docker/DiscogScrobbler`**:
 nano appsettings.Local.json
 ```
 
-Paste this. Fill in **Discogs** (all three). Fill in **Last.fm** only if you use scrobbling; you can leave those empty and connect Last.fm later in the app **Settings** instead. That is recommended, using them in app settings is untested.
+Paste the template below. Fill in **Discogs** `ConsumerKey` and `ConsumerSecret` from your Discogs developer app.  
+For **Last.fm**, fill `ApiKey` and `ApiSecret` only if you use scrobbling; every user still clicks **Connect Last.fm** in the app so their own account is linked.
 
-Leave **`App`** exactly as shown — it points covers at **`/app/images`**, which matches the **`./images:/app/images`** line in Compose below.
+Leave **`App:ImageBasePath`** as **`/app/images`** — that matches the Docker volume line you’ll paste in step 6.
 
 ```json
 {
   "Discogs": {
     "ConsumerKey": "",
-    "ConsumerSecret": "",
-    "PersonalAccessToken": ""
+    "ConsumerSecret": ""
   },
   "LastFm": {
     "ApiKey": "",
-    "ApiSecret": "",
-    "SessionKey": "",
-    "Username": "",
-    "Password": ""
+    "ApiSecret": ""
   },
   "App": {
     "ImageBasePath": "/app/images"
@@ -83,23 +117,23 @@ Leave **`App`** exactly as shown — it points covers at **`/app/images`**, whic
 }
 ```
 
-Save, exit (`Ctrl+O`, Enter, `Ctrl+X` in nano).
+In **nano**: save with **Ctrl+O**, Enter, then exit with **Ctrl+X**. (You can use any editor you like instead of nano.)
 
-The file must be **valid JSON** (not a blank file). **Discogs** can’t be empty strings or the app will crash on startup — fill all three. Fragile? Maybe. But that integration is sort of the entire point of the app. 
+**JSON must be valid** — at minimum real `{}` with quotes, not an empty file. **Discogs key and secret cannot be empty** or the app will exit on startup. The **personal Discogs token** is **not** this file; each user adds that in **Settings** after logging in.
 
-Last.fm can stay empty, use **Settings → Connect Last.fm**.
+**Last.fm:** Leave both empty if you don’t care about scrobbling. If you set them, all users share that **application** key pair; each still links **their** Last.fm account in **Settings**.
 
 ---
 
 ## 4 — Environment file for the container
 
-Still in **`~/docker/DiscogScrobbler`**, create **`.env`**:
+Still in **`~/docker/DiscogScrobbler`**:
 
 ```bash
 nano .env
 ```
 
-Paste exactly:
+Paste **exactly**:
 
 ```env
 ASPNETCORE_ENVIRONMENT=Production
@@ -107,13 +141,49 @@ ASPNETCORE_URLS=http://+:8080
 ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db
 ```
 
-Save and exit.
+Save and close.
 
 ---
 
-## 5 — Compose file
+## 5 — `.dockerignore` (recommended — speeds up builds)
 
-Still in **`~/docker/DiscogScrobbler`**, create **`docker-compose.yml`**:
+**In plain English:** When Docker **builds** the image, it packs up everything under **`~/docker/DiscogScrobbler`** and sends it to the Docker engine. Without a ignore-list, it might include huge folders (old builds, `node_modules`, your real database copy, etc.) and builds feel **slow** or use a lot of disk.
+
+A **`.dockerignore`** file in **`~/docker/DiscogScrobbler`** (same place as **`docker-compose.yml`** will go) tells Docker **what to skip**.  
+**Git clone does not create this file for you** — create it once yourself.
+
+```bash
+cd ~/docker/DiscogScrobbler
+nano .dockerignore
+```
+
+Paste:
+
+```gitignore
+**/[Bb]in/
+**/[Oo]bj/
+**/node_modules/
+.git/
+.idea/
+.vs/
+**/*.user
+**/logs/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+data/
+images/
+.env
+appsettings.Local.json
+```
+
+Save and close. If you later put other giant folders next to the project, you can add more lines to ignore them too.
+
+---
+
+## 6 — Compose file
+
+Still in **`~/docker/DiscogScrobbler`**:
 
 ```bash
 nano docker-compose.yml
@@ -139,78 +209,100 @@ services:
       - .env
 ```
 
-Save and exit.
+Save and close.
 
-`5100` is the port on **your Linux box** → inside the container the app listens on `8080`. Open **`http://YOUR_SERVER_IP:5100`** from another PC on the LAN.
+- **`5100`** — port on **your Linux machine** (change if something else uses it).
+- **`8080`** — port **inside** the container (leave this side alone unless you know you need to change it).
+
+Open **`http://YOUR_SERVER_IP:5100`** from another device on your home network.
 
 ---
 
-## 6 — Run
+## 7 — Build and run
 
 ```bash
 cd ~/docker/DiscogScrobbler
 docker compose up -d --build
 ```
 
-First build can take several minutes.
+- **`--build`** — rebuild image if the code or Dockerfile changed.
+- **`-d`** — **detached** — runs in the background so your terminal is free.
 
-Check it’s alive:
+The **first** build can take several minutes.
+
+**Check that it’s running:**
 
 ```bash
 docker compose ps
 docker compose logs -f
 ```
 
-After first build has run you can use **up** as normal
+(`logs -f` streams logs; **Ctrl+C** stops following—the container keeps running.)
+
+After the first successful build, day-to-day you can often do:
 
 ```bash
+cd ~/docker/DiscogScrobbler
 docker compose up -d
 ```
+
 ---
 
 ## After it’s running
 
-1. **Browser** → `http://<server-ip>:5100`
-2. **Register** a login (your own server; no magic “admin” account).
-3. Open **Settings** → set **Discogs username** → run **sync** (or wait for the automatic daily sync). Larege collections will take a while to fully populate data (30 mins maximum maybe for 500 records). Gotta be polite to discogs servers! You can browse an incomplete collection while it syncs.
+The database under **`./data`** stores each user’s Discogs **personal token in plain text** (by design for a simple home app). **Anyone who copies that file can use those tokens on Discogs.** Read the **Security posture** section in **[README.md](README.md)** before putting this on the public internet.
+
+1. Browser → **`http://<server-ip>:5100`**
+2. **Register** the first user — they become **Admin** and can sign in immediately.
+3. Anyone else: **Register**, then wait. They **cannot log in** until an Admin opens **Settings** and **approves** them (or **denies**, which removes that signup). There is **no** email confirmation.
+4. In **Settings**, set **Discogs username** and **personal access token**, then sync (or wait for the daily sync if both are saved). Large collections can take a long time—Discogs rate limits are normal. You can use the site while sync runs.
 
 ---
 
-## Update app to latest code later
+## Updating to newer code later
+
+You have **two** folder levels that matter:
+
+| Folder | Role |
+|--------|------|
+| **`~/docker/DiscogScrobbler`** | Where **`docker compose`** runs. Holds your data volumes and config. |
+| **`~/docker/DiscogScrobbler/DiscogScrobblerMVC`** | The **Git** repo. **`git pull`** belongs **here**. |
+
+**Routine update:**
 
 ```bash
-cd ~/docker/DiscogScrobbler
+cd ~/docker/DiscogScrobbler/DiscogScrobblerMVC
 git pull
+cd ..
 docker compose up -d --build
 ```
-If that isn't working, it may be a breaking change:
+
+If something big changed and a normal rebuild isn’t enough:
 
 ```bash
-cd ~/docker/DiscogScrobbler
+cd ~/docker/DiscogScrobbler/DiscogScrobblerMVC
 git pull
+cd ..
 docker compose up --build --force-recreate
 ```
 
-Your database and `images/` stay in **`./data`** and **`./images`** — they aren’t wiped by rebuild (because of the mounts).
+Your **database** and **images** stay in **`./data`** and **`./images`** on the host—rebuilding the container does not delete those because of the **volume** mounts.
 
 ---
 
-## Optional: copy old cover files
+## Troubleshooting — quick table
 
-If this app saved covers under **`/tmp/DiscogScrobblerMVC/images/`** during dev, or if you have them saved somewhere from running instances before, you can copy the `*.jpg` files into **`~/docker/DiscogScrobbler/images/`** before or after first run — same filenames, less re-downloading.
+| What you see | What to try |
+|--------------|-------------|
+| **`npm: not found`** during image build | In **`~/docker/DiscogScrobbler/DiscogScrobblerMVC`** run **`git pull`** so you get the current Dockerfile (it installs Node on purpose). Then rebuild from the parent folder. |
+| Build **very slow** or huge upload | Add **`.dockerignore`** next to **`docker-compose.yml`** — see **step 5**. |
+| **Covers gone** after a rebuild | Check **`./images:/app/images`** is still in Compose and the **`images`** folder is writable. |
+| Covers not landing in **`/app/images`** | Keep **`App:ImageBasePath`** as **`/app/images`**, keep the volume line, read logs for permission errors. |
+| Collection / value never updates | User needs **both** Discogs **username** and **personal token** in **Settings**; background sync only runs when both exist. |
+| **Wrong port** | In **`docker-compose.yml`**, change **`5100:8080`** — change **only the first number** (`5100`) unless you know you need to change the container side. |
+
+If in doubt, **`docker compose logs`** usually explains a startup failure.
 
 ---
 
-## Troubleshooting — one glance
-
-| Symptom | Try |
-|---------|-----|
-| `npm: not found` during image build | You’re on an old checkout — **`git pull`**. Current Dockerfile installs Node on purpose. |
-| Build context huge / slow | Repo should include root **`.dockerignore`** — **`git pull`**. |
-| Covers disappear after rebuild | You didn’t keep **`./images:/app/images`** or the **`images`** folder isn’t writable. |
-| Covers are written to temp instead of `/app/images` | Keep `App:ImageBasePath` set to `/app/images` and ensure the `./images:/app/images` mount exists and is writable. |
-| Wrong port | Edit **`docker-compose.yml`** `5100:8080` — left side is yours. |
-
-Lots of logging, so check the logs too.
-
-For local development (not Docker), see **[`LOCAL_DEVELOPMENT.md`](LOCAL_DEVELOPMENT.md)**. Project overview: **[`README.md`](README.md)**.
+**Not using Docker?** See **[LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)**. **Project overview:** **[README.md](README.md)**.

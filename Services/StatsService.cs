@@ -1,5 +1,6 @@
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;
@@ -36,7 +37,7 @@ public class StatsService : IStatsService
         // Filtering via navigations (`...Release.UserAssociations.Any(...)`) stays fully
         // translatable and uses our indexes.
         var ownedReleases = _db.Releases.AsNoTracking()
-            .Where(x => x.UserAssociations.Any(x => x.UserId == userId));
+            .Where(x => x.UserAssociations.Any(y => y.UserId == userId));
 
         var ownedReleaseCount = await ownedReleases.CountAsync(cancellationToken);
 
@@ -53,7 +54,7 @@ public class StatsService : IStatsService
         // source yields zero rows, so FirstOrDefaultAsync returns null — coalesce in C#.
         // SQL AVG already ignores nulls, so we don't filter inside Average().
         var trackAggregate = await _db.Tracks.AsNoTracking()
-            .Where(x => x.Release.UserAssociations.Any(x => x.UserId == userId))
+            .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))
             .GroupBy(_ => 1)
             .Select(x => new
             {
@@ -69,7 +70,7 @@ public class StatsService : IStatsService
 
         // Releases with at least one track ingested — drives the "syncing N…" hint.
         viewModel.IngestedReleaseCount = await _db.Tracks.AsNoTracking()
-            .Where(x => x.Release.UserAssociations.Any(x => x.UserId == userId))
+            .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))
             .Select(x => x.ReleaseId)
             .Distinct()
             .CountAsync(cancellationToken);
@@ -85,7 +86,7 @@ public class StatsService : IStatsService
         // any non A–Z first letter (Björk, "50 Cent", "...And You Will Know Us") folds
         // into '#' in the C# step below. "Various" is intentionally kept here.
         var rawLetterBuckets = await _db.Artists.AsNoTracking()
-            .Where(x => x.Releases.Any(x => x.UserAssociations.Any(x => x.UserId == userId)))
+            .Where(x => x.Releases.Any(y => y.UserAssociations.Any(z => z.UserId == userId)))
             .GroupBy(x => x.Name.Trim().Substring(0, 1).ToUpper())
             .Select(x => new { Letter = x.Key, Count = x.Count() })
             .ToListAsync(cancellationToken);
@@ -96,7 +97,7 @@ public class StatsService : IStatsService
         // NormalizedName upsert invariant (see DiscogsService ~line 700). ThenBy(Name)
         // gives stable ordering on ties.
         var topStylesRaw = await _db.ReleaseStyles.AsNoTracking()
-            .Where(x => x.Release.UserAssociations.Any(x => x.UserId == userId))
+            .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))
             .GroupBy(x => x.Style.Name)
             .Select(x => new { Name = x.Key, Count = x.Count() })
             .OrderByDescending(x => x.Count).ThenBy(x => x.Name)
@@ -106,7 +107,7 @@ public class StatsService : IStatsService
         viewModel.TopStyles = topStylesRaw.Select(x => new NameCountViewModel(x.Name, x.Count)).ToList();
 
         var topGenresRaw = await _db.ReleaseGenres.AsNoTracking()
-            .Where(x => x.Release.UserAssociations.Any(x => x.UserId == userId))
+            .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))
             .GroupBy(x => x.Genre.Name)
             .Select(x => new { Name = x.Key, Count = x.Count() })
             .OrderByDescending(x => x.Count).ThenBy(x => x.Name)
@@ -123,7 +124,7 @@ public class StatsService : IStatsService
             {
                 x.Id,
                 x.Name,
-                Count = x.Releases.Count(x => x.UserAssociations.Any(x => x.UserId == userId)),
+                Count = x.Releases.Count(y => y.UserAssociations.Any(z => z.UserId == userId)),
             })
             .Where(x => x.Count > 0)
             .OrderByDescending(x => x.Count).ThenBy(x => x.Name)
@@ -135,7 +136,7 @@ public class StatsService : IStatsService
         // (5b) Footnote: how many releases are credited to the Various placeholder.
         viewModel.VariousReleaseCount = await _db.Artists.AsNoTracking()
             .Where(x => x.DiscogsArtistId == VariousDiscogsArtistId || x.Name == "Various")
-            .Select(x => x.Releases.Count(x => x.UserAssociations.Any(x => x.UserId == userId)))
+            .Select(x => x.Releases.Count(y => y.UserAssociations.Any(z => z.UserId == userId)))
             .SumAsync(cancellationToken);
 
         if (viewModel.PendingReleaseCount > 0)
@@ -154,7 +155,7 @@ public class StatsService : IStatsService
     }
 
     /// <summary>
-    /// Folds raw SQLite ASCII-uppercased first-letter buckets into A–Z plus '#'.
+    /// Folds raw SQLite ASCII-uppercased first-letter buckets into A - Z plus '#'.
     /// Any non A–Z key (empty/null, digits, punctuation, non-ASCII letters) goes into '#'.
     /// Always returns 27 buckets in alphabetical order with '#' last so the chart axis is stable.
     /// </summary>

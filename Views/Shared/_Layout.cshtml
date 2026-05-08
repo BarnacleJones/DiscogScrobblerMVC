@@ -42,28 +42,94 @@
 
                 @* Collapsible nav links. *@
                 <div class="collapse navbar-collapse" id="mainNav">
-                    <ul class="navbar-nav ms-auto mt-2 mt-sm-0 gap-1">
+                    @{
+                        var navController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+                        var collectionBrowseDropdownActive =
+                            navController is "Collection" or "Tracks" or "Genres" or "Styles" or "Labels"
+                            || navController == "CollectionBrowse"
+                            || navController == "Label";
+                    }
+                    <ul class="navbar-nav ms-auto mt-2 mt-sm-0 gap-1 align-items-sm-center">
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Collection" ? "active" : "")"
-                                   asp-controller="Collection" asp-action="Index">Collection</a>
+                            <li class="nav-item w-100 d-sm-none pt-2">
+                                <button type="button"
+                                        class="nav-submenu-toggle w-100 text-start @(collectionBrowseDropdownActive ? "" : "collapsed")"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#collectionBrowseMobileSubnav"
+                                        aria-expanded="@(collectionBrowseDropdownActive ? "true" : "false")"
+                                        aria-controls="collectionBrowseMobileSubnav">
+                                    Collection Browse
+                                </button>
+                                <div class="collapse @(collectionBrowseDropdownActive ? "show" : "")"
+                                     id="collectionBrowseMobileSubnav">
+                                    <ul class="navbar-nav ms-3 mt-1 pb-1 gap-1 flex-column align-items-start">
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Collection" ? "active" : "")"
+                                               asp-controller="Collection" asp-action="Index">Collection</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Tracks" ? "active" : "")"
+                                               asp-controller="Tracks" asp-action="Index">Tracks</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Genres" ? "active" : "")"
+                                               asp-controller="Genres" asp-action="Index">Genres</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Styles" ? "active" : "")"
+                                               asp-controller="Styles" asp-action="Index">Styles</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Labels" ? "active" : "")"
+                                               asp-controller="Labels" asp-action="Index">Labels</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+                            <li class="nav-item dropdown d-none d-sm-block">
+                                <a class="nav-link dropdown-toggle @(collectionBrowseDropdownActive ? "active" : "")"
+                                   href="#"
+                                   role="button"
+                                   data-bs-toggle="dropdown"
+                                   aria-expanded="false">Collection Browse</a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item @(navController == "Collection" ? "active" : "")"
+                                           asp-controller="Collection" asp-action="Index">Collection</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item @(navController == "Tracks" ? "active" : "")"
+                                           asp-controller="Tracks" asp-action="Index">Tracks</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item @(navController == "Genres" ? "active" : "")"
+                                           asp-controller="Genres" asp-action="Index">Genres</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item @(navController == "Styles" ? "active" : "")"
+                                           asp-controller="Styles" asp-action="Index">Styles</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item @(navController == "Labels" ? "active" : "")"
+                                           asp-controller="Labels" asp-action="Index">Labels</a>
+                                    </li>
+                                </ul>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tracks" ? "active" : "")"
-                                   asp-controller="Tracks" asp-action="Index">Tracks</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Release" && ViewContext.RouteData.Values["action"]?.ToString() == "Random" ? "active" : "")"
+                                <a class="nav-link @(navController == "Release" && ViewContext.RouteData.Values["action"]?.ToString() == "Random" ? "active" : "")"
                                    asp-controller="Release" asp-action="Random">Random</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Stats" ? "active" : "")"
+                                <a class="nav-link @(navController == "Stats" ? "active" : "")"
                                    asp-controller="Stats" asp-action="Index">Stats</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Settings" ? "active" : "")"
-                                   asp-controller="Settings" asp-action="Index">Settings</a>
+                                <a class="nav-link position-relative pe-3 @(navController == "Settings" ? "active" : "")"
+                                   asp-controller="Settings" asp-action="Index">
+                                    Settings
+                                    @await Component.InvokeAsync("PendingRegistrationBadge")
+                                </a>
                             </li>
                         }
                         <partial name="_LoginPartial" />
@@ -82,7 +148,7 @@
 
     <footer class="footer border-top py-3">
         <div class="container-fluid px-3 footer-wrap">
-            &copy; 2026 DiscogScrobblerMVC &mdash;
+            &copy; 2026 DiscogScrobblerMVC
         </div>
     </footer>
 

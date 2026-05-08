@@ -125,6 +125,17 @@ body {
   font-weight: 500;
 }
 
+.nav-link.position-relative .nav-settings-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  min-width: 1rem;
+  padding: 0.15em 0.4em;
+  line-height: 1.2;
+}
+
 .navbar-toggler {
   border: 1px solid var(--line2);
   padding: 4px 8px;
@@ -204,19 +215,6 @@ body {
   border-color: var(--accent2) !important;
   color: #0e0e0f !important;
 }
-.random-dice-button {
-  background: #0e0e0f;
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 500;
-}
-.random-dice-button:hover,
-.random-dice-button:focus,
-.random-dice-button:active {
-  background: var(--bg2) !important;
-  border-color: var(--accent2) !important;
-  color: var(--accent2) !important;
-}
 
 .btn-outline-secondary {
   background: transparent;
@@ -230,7 +228,10 @@ body {
 }
 
 #clearCollectionFilterBtn,
-#clearTracksFilterBtn {
+#clearTracksFilterBtn,
+#clearGenresFilterBtn,
+#clearStylesFilterBtn,
+#clearLabelsFilterBtn {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -240,10 +241,102 @@ body {
 #clearCollectionFilterBtn:active,
 #clearTracksFilterBtn:hover,
 #clearTracksFilterBtn:focus,
-#clearTracksFilterBtn:active {
+#clearTracksFilterBtn:active,
+#clearGenresFilterBtn:hover,
+#clearGenresFilterBtn:focus,
+#clearGenresFilterBtn:active,
+#clearStylesFilterBtn:hover,
+#clearStylesFilterBtn:focus,
+#clearStylesFilterBtn:active,
+#clearLabelsFilterBtn:hover,
+#clearLabelsFilterBtn:focus,
+#clearLabelsFilterBtn:active {
   background: var(--accent);
   border-color: var(--accent);
   color: #0e0e0f;
+}
+
+.nav-submenu-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt3) !important;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.nav-submenu-toggle:hover,
+.nav-submenu-toggle:focus {
+  color: var(--txt2) !important;
+  border-color: var(--line2);
+  outline: none;
+}
+.nav-submenu-toggle::after {
+  content: "";
+  flex-shrink: 0;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: auto;
+  border-right: 2px solid var(--txt3);
+  border-bottom: 2px solid var(--txt3);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease, border-color 0.15s;
+}
+.nav-submenu-toggle:hover::after,
+.nav-submenu-toggle:focus::after {
+  border-color: var(--txt2);
+}
+.nav-submenu-toggle:not(.collapsed)::after {
+  transform: rotate(-135deg);
+}
+
+/* Collection Browse dropdown — match dark navbar / card tokens */
+.navbar .dropdown-menu {
+  background-color: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  padding: 0.35rem;
+  margin-top: 0.35rem;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+}
+
+.navbar .dropdown-menu .dropdown-item {
+  background-color: transparent;
+  color: var(--txt2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+}
+
+.navbar .dropdown-menu .dropdown-item:hover,
+.navbar .dropdown-menu .dropdown-item:focus {
+  background-color: var(--bg4);
+  color: var(--txt);
+}
+
+.navbar .dropdown-menu .dropdown-item.active,
+.navbar .dropdown-menu .dropdown-item.active:hover,
+.navbar .dropdown-menu .dropdown-item.active:focus {
+  background-color: var(--accent);
+  color: #0e0e0f;
+  font-weight: 500;
+}
+
+.navbar .dropdown-menu .dropdown-item:active:not(.active) {
+  background-color: var(--bg3);
+  color: var(--txt);
 }
 
 .btn:focus, .btn:active:focus {
@@ -349,31 +442,21 @@ body {
 .table td { border-color: var(--line); }
 .table tbody tr:hover td { background: var(--bg3); color: var(--txt); }
 
-#collectionTable tbody tr:nth-child(odd) td {
+/* Data grid pages: wrap the `<table>` in `.theme-data-grid` so pagination / filters match theme. */
+.theme-data-grid table tbody tr:nth-child(odd) td {
   background: rgba(255,255,255,0.015);
 }
 
-#collectionTable tbody tr:nth-child(even) td {
+.theme-data-grid table tbody tr:nth-child(even) td {
   background: transparent;
 }
 
-#tracksTable tbody tr:nth-child(odd) td {
-  background: rgba(255,255,255,0.015);
-}
-
-#tracksTable tbody tr:nth-child(even) td {
-  background: transparent;
-}
-
-#collectionTable tbody td a,
-#tracksTable tbody td a {
+.theme-data-grid table tbody td a {
   color: var(--txt2);
 }
 
-#collectionTable tbody td a:hover,
-#collectionTable tbody td a:focus,
-#tracksTable tbody td a:hover,
-#tracksTable tbody td a:focus {
+.theme-data-grid table tbody td a:hover,
+.theme-data-grid table tbody td a:focus {
   color: var(--txt);
 }
 
@@ -412,22 +495,17 @@ body {
   border: 1px solid var(--line);
 }
 
-/* ─── DataTables ─────────────────────────────────────── */
-#collectionTable_wrapper .dataTables_length label,
-#collectionTable_wrapper .dataTables_filter label,
-#collectionTable_wrapper .dataTables_info,
-#tracksTable_wrapper .dataTables_length label,
-#tracksTable_wrapper .dataTables_filter label,
-#tracksTable_wrapper .dataTables_info {
+/* ─── DataTables (inside .theme-data-grid) ──────────── */
+.theme-data-grid .dataTables_length label,
+.theme-data-grid .dataTables_filter label,
+.theme-data-grid .dataTables_info {
   color: var(--txt3);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
 
-#collectionTable_wrapper .dataTables_filter input,
-#collectionTable_wrapper .dataTables_length select,
-#tracksTable_wrapper .dataTables_filter input,
-#tracksTable_wrapper .dataTables_length select {
+.theme-data-grid .dataTables_filter input,
+.theme-data-grid .dataTables_length select {
   background: var(--bg3);
   border: 1px solid var(--line2);
   border-radius: 6px;
@@ -438,17 +516,14 @@ body {
   margin-left: 6px;
 }
 
-#collectionTable_wrapper .dataTables_filter input:focus,
-#collectionTable_wrapper .dataTables_length select:focus,
-#tracksTable_wrapper .dataTables_filter input:focus,
-#tracksTable_wrapper .dataTables_length select:focus {
+.theme-data-grid .dataTables_filter input:focus,
+.theme-data-grid .dataTables_length select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(212,245,66,0.12);
   outline: none;
 }
 
-#collectionTable_wrapper .dataTables_paginate .paginate_button,
-#tracksTable_wrapper .dataTables_paginate .paginate_button {
+.theme-data-grid .dataTables_paginate .paginate_button {
   font-family: var(--font-mono);
   font-size: 11px;
   border-radius: 6px !important;
@@ -456,17 +531,14 @@ body {
   border: 1px solid transparent !important;
 }
 
-#collectionTable_wrapper .dataTables_paginate .paginate_button:hover,
-#tracksTable_wrapper .dataTables_paginate .paginate_button:hover {
+.theme-data-grid .dataTables_paginate .paginate_button:hover {
   background: var(--bg3) !important;
   border-color: var(--line2) !important;
   color: var(--txt) !important;
 }
 
-#collectionTable_wrapper .dataTables_paginate .paginate_button.current,
-#collectionTable_wrapper .dataTables_paginate .paginate_button.current:hover,
-#tracksTable_wrapper .dataTables_paginate .paginate_button.current,
-#tracksTable_wrapper .dataTables_paginate .paginate_button.current:hover {
+.theme-data-grid .dataTables_paginate .paginate_button.current,
+.theme-data-grid .dataTables_paginate .paginate_button.current:hover {
   background: var(--accent) !important;
   border-color: var(--accent) !important;
   color: #0e0e0f !important;
@@ -480,9 +552,9 @@ td.dt-control {
   font-size: 14px;
   user-select: none;
 }
-#collectionTable td.dt-control::before,
-#tracksTable td.dt-control::before,
-td.dt-control::before {
+
+/* Must beat DataTables' `table.dataTable tbody td.dt-control:before` (triangle placeholder). */
+.theme-data-grid table.table.dataTable tbody td.dt-control::before {
   content: '▶';
   transition: transform 0.15s;
   display: inline-block;
@@ -496,19 +568,14 @@ td.dt-control::before {
   box-shadow: none !important;
   opacity: 1 !important;
 }
-tr.dt-hasChild td.dt-control::before {
+
+.theme-data-grid table.table.dataTable tbody tr.dt-hasChild td.dt-control::before {
   transform: rotate(90deg);
   color: var(--accent) !important;
 }
 
-#collectionTable td.dt-control,
-#tracksTable td.dt-control {
+.theme-data-grid table.table.dataTable tbody td.dt-control {
   color: var(--accent);
-}
-
-#collectionTable tr.dt-hasChild td.dt-control::before,
-#tracksTable tr.dt-hasChild td.dt-control::before {
-  color: var(--accent) !important;
 }
 
 tr.child-row td {
@@ -537,11 +604,11 @@ tr.child-row td {
   margin-top: 1px;
 }
 
-#collectionTable_wrapper .pagination,
-#tracksTable_wrapper .pagination { gap: 4px; }
+.theme-data-grid .pagination {
+  gap: 4px;
+}
 
-#collectionTable_wrapper .page-item .page-link,
-#tracksTable_wrapper .page-item .page-link {
+.theme-data-grid .page-item .page-link {
   background: transparent;
   border: 1px solid var(--line2);
   border-radius: 6px !important;
@@ -553,43 +620,40 @@ tr.child-row td {
   transition: all 0.15s;
 }
 
-#collectionTable_wrapper .page-item .page-link:hover,
-#tracksTable_wrapper .page-item .page-link:hover {
+.theme-data-grid .page-item .page-link:hover {
   background: var(--bg3);
   border-color: var(--txt3);
   color: var(--txt);
 }
 
-#collectionTable_wrapper .page-item.active .page-link,
-#tracksTable_wrapper .page-item.active .page-link {
+.theme-data-grid .page-item.active .page-link {
   background: var(--accent);
   border-color: var(--accent);
   color: #0e0e0f;
   font-weight: 500;
 }
 
-#collectionTable_wrapper .page-item.disabled .page-link,
-#tracksTable_wrapper .page-item.disabled .page-link {
+.theme-data-grid .page-item.disabled .page-link {
   background: transparent;
   border-color: var(--line);
   color: var(--txt3);
   opacity: 0.5;
 }
 
-/* Mobile-specific collection table density/overflow tuning */
 @media (max-width: 767.98px) {
-  #collectionTable,
-  #collectionTable_wrapper {
+  .theme-data-grid {
     width: 100% !important;
     max-width: 100%;
   }
 
-  #collectionTable_wrapper {
+  .theme-data-grid .dt-container {
     overflow-x: clip;
+    width: 100% !important;
+    max-width: 100%;
   }
 
-  #collectionTable td,
-  #collectionTable th {
+  .theme-data-grid table td,
+  .theme-data-grid table th {
     white-space: normal;
     word-break: break-word;
   }
@@ -627,6 +691,22 @@ tr.child-row td {
 }
 
 /* Random release dice */
+@keyframes random-dice-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.random-dice-button {
+  background: #0e0e0f;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 500;
+}
+.random-dice-button:is(:hover, :focus, :active) {
+  background: var(--bg2) !important;
+  border-color: var(--accent2) !important;
+  color: var(--accent2) !important;
+}
 .random-dice-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -635,15 +715,13 @@ tr.child-row td {
   max-width: 420px;
   margin: 0 auto;
 }
+.random-dice-grid--rolling {
+  animation: random-dice-shake 0.45s ease-in-out infinite;
+}
 .random-dice-choice {
   display: block;
   border-radius: 8px;
 }
-.random-dice-choice-1 { grid-area: 1 / 1; }
-.random-dice-choice-2 { grid-area: 1 / 3; }
-.random-dice-choice-3 { grid-area: 2 / 2; }
-.random-dice-choice-4 { grid-area: 3 / 1; }
-.random-dice-choice-5 { grid-area: 3 / 3; }
 .random-dice-cover {
   width: 100%;
   aspect-ratio: 1 / 1;

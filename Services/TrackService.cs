@@ -1,5 +1,6 @@
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;
@@ -17,7 +18,7 @@ public class TrackService : ITrackService
     {
         // Tracks are owned implicitly via the user owning the Release in DiscogsReleaseToUsers.
         var tracks = await _db.Tracks.AsNoTracking()
-            .Where(x => x.Release.UserAssociations.Any(x => x.UserId == userId))
+            .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))
             .OrderBy(x => x.Title)
             .ThenBy(x => x.Position)
             .Select(x => new
@@ -25,7 +26,7 @@ public class TrackService : ITrackService
                 ReleaseId = x.Release.DiscogsReleaseId,
                 Album = x.Release.Album,
                 Year = x.Release.Year,
-                Artists = x.Release.Artists.Select(x => x.Name).ToList(),
+                Artists = x.Release.Artists.Select(y => y.Name).ToList(),
                 x.Position,
                 x.Title,
                 x.Duration,
@@ -35,7 +36,7 @@ public class TrackService : ITrackService
         return tracks.Select(x =>
         {
             var artistDisplay = x.Artists.Count > 0
-                ? string.Join(", ", x.Artists.OrderBy(x => x))
+                ? string.Join(", ", x.Artists.OrderBy(y => y))
                 : "—";
 
             return new TrackItemViewModel

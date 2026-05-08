@@ -1,4 +1,4 @@
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Interfaces;
 
 public interface IDiscogsSyncQueue
 {

@@ -1,5 +1,7 @@
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;
@@ -17,6 +19,9 @@ public class CollectionService : ICollectionService
 
     public async Task<IReadOnlyList<CollectionItemViewModel>> GetCollectionItemsAsync(string userId, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var collectionItems = await _db.DiscogsReleaseToUsers.AsNoTracking()
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.DateAdded)
@@ -31,8 +36,8 @@ public class CollectionService : ICollectionService
                 x.Release.Images!.LocalImageFilename,
                 x.Release.Images!.CoverUrl,
                 Artists = x.Release.Artists
-                    .OrderBy(x => x.Name)
-                    .Select(x => new ArtistLinkViewModel(x.Id, x.Name))
+                    .OrderBy(y => y.Name)
+                    .Select(y => new ArtistLinkViewModel(y.Id, y.Name))
                     .ToList(),
             })
             .ToListAsync(cancellationToken);
@@ -47,7 +52,8 @@ public class CollectionService : ICollectionService
                 Album = x.Album,
                 Year = x.Year,
                 DateAdded = x.DateAdded,
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),
@@ -58,6 +64,9 @@ public class CollectionService : ICollectionService
     public async Task<IReadOnlyList<HomeRecentReleaseViewModel>> GetRecentCollectionReleasesAsync(
         string userId, int take, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var recentReleases = await _db.DiscogsReleaseToUsers.AsNoTracking()
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.DateAdded)
@@ -70,8 +79,8 @@ public class CollectionService : ICollectionService
                 x.Release.Images!.LocalImageFilename,
                 x.Release.Images!.CoverUrl,
                 Artists = x.Release.Artists
-                    .OrderBy(x => x.Name)
-                    .Select(x => new ArtistLinkViewModel(x.Id, x.Name))
+                    .OrderBy(y => y.Name)
+                    .Select(y => new ArtistLinkViewModel(y.Id, y.Name))
                     .ToList(),
             })
             .ToListAsync(cancellationToken);
@@ -83,7 +92,8 @@ public class CollectionService : ICollectionService
                 Album = x.Album,
                 ArtistDisplay = FormatArtistDisplay(x.Artists),
                 Artists = x.Artists,
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),
@@ -99,11 +109,14 @@ public class CollectionService : ICollectionService
         if (string.IsNullOrEmpty(trimmedSearchQuery))
             return viewModel;
 
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var searchPattern = $"%{EscapeLikePattern(trimmedSearchQuery)}%";
 
         var artists = await _db.Artists.AsNoTracking()
             .Where(x => EF.Functions.Like(x.Name, searchPattern, "\\"))
-            .Where(x => x.Releases.Any(x => x.UserAssociations.Any(x => x.UserId == userId)))
+            .Where(x => x.Releases.Any(y => y.UserAssociations.Any(z => z.UserId == userId)))
             .OrderBy(x => x.Name)
             .Take(SearchArtistReleaseLimit)
             .Select(x => new CollectionSearchArtistResult { Id = x.Id, Name = x.Name })
@@ -113,7 +126,7 @@ public class CollectionService : ICollectionService
             .Where(x => x.UserId == userId)
             .Where(x =>
                 EF.Functions.Like(x.Release.Album, searchPattern, "\\") ||
-                x.Release.Artists.Any(x => EF.Functions.Like(x.Name, searchPattern, "\\")))
+                x.Release.Artists.Any(y => EF.Functions.Like(y.Name, searchPattern, "\\")))
             .GroupBy(x => new
             {
                 x.Release.DiscogsReleaseId,
@@ -150,7 +163,8 @@ public class CollectionService : ICollectionService
                 Album = x.Album,
                 Year = x.Year,
                 ArtistDisplay = FormatArtistDisplay(x.Artists),
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),

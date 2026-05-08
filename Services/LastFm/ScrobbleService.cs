@@ -3,11 +3,12 @@ using System.Text;
 using System.Xml.Linq;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
-using Hqub.Lastfm;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.LastFm;
 
 public class ScrobbleService : IScrobbleService
 {
@@ -47,17 +48,15 @@ public class ScrobbleService : IScrobbleService
         if (!HasApiKeyPair())
             return ScrobbleFailureReason.LastFmNotConfigured;
 
-        var userLinkedSession = await UserHasStoredLastFmSessionAsync(userId, cancellationToken);
-        var globalSessionKeyConfigured = !string.IsNullOrWhiteSpace(_options.SessionKey);
-        var legacyUserPassConfigured = LastFmLegacyUserPassConfigured();
-
-        if (!userLinkedSession && !globalSessionKeyConfigured && !legacyUserPassConfigured)
+        var sessionKeyResolved = await _db.Users.AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.LastFmSessionKey)
+            .FirstOrDefaultAsync(cancellationToken);
+        sessionKeyResolved = sessionKeyResolved?.Trim();
+        if (string.IsNullOrEmpty(sessionKeyResolved))
         {
             _logger.LogWarning(
-                "Last.fm writes blocked — API key present but no auth: UserLinked={Linked} GlobalSession={GlobalSk} UsernamePasswordConfigured={Legacy}. Open /Settings Connect Last.fm, or set LastFm:SessionKey, or Username+Password.",
-                userLinkedSession,
-                globalSessionKeyConfigured,
-                legacyUserPassConfigured);
+                "Last.fm writes blocked — API key present but this user has no linked Last.fm session. Open /Settings and connect Last.fm.");
             return ScrobbleFailureReason.LastFmNotConfigured;
         }
 
@@ -72,15 +71,15 @@ public class ScrobbleService : IScrobbleService
             .Select(x => new
             {
                 x.Album,
-                Artists = x.Artists.Select(x => x.Name).ToList(),
+                Artists = x.Artists.Select(y => y.Name).ToList(),
                 Tracks = x.Tracks
-                    .Where(x => x.Title != "")
-                    .Select(x => new
+                    .Where(y => y.Title != "")
+                    .Select(y => new
                     {
-                        x.Position,
-                        x.Title,
-                        x.Duration,
-                        x.DurationSeconds,
+                        y.Position,
+                        y.Title,
+                        y.Duration,
+                        y.DurationSeconds,
                     })
                     .ToList(),
             })
@@ -102,25 +101,8 @@ public class ScrobbleService : IScrobbleService
         var album =
             string.IsNullOrWhiteSpace(albumRaw) ? null : albumRaw;
 
-        string? sessionKeyResolved;
-        try
-        {
-            sessionKeyResolved = await ResolveWritableSessionKeyAsync(userId, cancellationToken);
-            if (string.IsNullOrWhiteSpace(sessionKeyResolved))
-            {
-                _logger.LogError("Last.fm session is not authenticated after configuration.");
-                return ScrobbleFailureReason.LastFmNotConfigured;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Last.fm authentication failed.");
-            return ScrobbleFailureReason.LastFmRejected;
-        }
-
         var apiKey = _options.ApiKey.Trim();
         var apiSecret = _options.ApiSecret.Trim();
-        sessionKeyResolved = sessionKeyResolved.Trim();
 
         var albumEndUtc = DateTime.UtcNow;
         var rowArtist = NormalizeScrobbleText(artist);
@@ -164,17 +146,6 @@ public class ScrobbleService : IScrobbleService
 
     private bool HasApiKeyPair() =>
         !string.IsNullOrWhiteSpace(_options.ApiKey) && !string.IsNullOrWhiteSpace(_options.ApiSecret);
-
-    /// <remarks>
-    /// Priority at scrobble time: user profile session key → global SessionKey → mobile username/password config.
-    /// </remarks>
-    private async Task<bool> UserHasStoredLastFmSessionAsync(string userId, CancellationToken cancellationToken) =>
-        await _db.Users.AsNoTracking()
-            .AnyAsync(u => u.Id == userId && !string.IsNullOrWhiteSpace(u.LastFmSessionKey), cancellationToken);
-
-    private bool LastFmLegacyUserPassConfigured() =>
-        !string.IsNullOrWhiteSpace(_options.Username)
-        && !string.IsNullOrWhiteSpace(_options.Password);
 
     private static string FormatAlbumArtist(IEnumerable<string> artists)
     {
@@ -240,28 +211,6 @@ public class ScrobbleService : IScrobbleService
         string? Album,
         long TimestampUtc,
         int? DurationSeconds);
-
-    private async Task<string?> ResolveWritableSessionKeyAsync(string userId, CancellationToken cancellationToken)
-    {
-        var userSession = await _db.Users.AsNoTracking()
-            .Where(x => x.Id == userId)
-            .Select(x => x.LastFmSessionKey)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var sk = userSession?.Trim();
-        if (!string.IsNullOrEmpty(sk))
-            return sk;
-
-        if (!string.IsNullOrWhiteSpace(_options.SessionKey))
-            return _options.SessionKey.Trim();
-
-        if (!LastFmLegacyUserPassConfigured())
-            return null;
-
-        var client = new LastfmClient(_options.ApiKey!.Trim(), _options.ApiSecret!.Trim());
-        await client.AuthenticateAsync(_options.Username!.Trim(), _options.Password!.Trim()).ConfigureAwait(false);
-        return client.Session.SessionKey?.Trim();
-    }
 
     private static string NormalizeScrobbleText(string? s)
     {

@@ -1,5 +1,7 @@
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;
@@ -15,6 +17,9 @@ public class CollectionBrowseService : ICollectionBrowseService
 
     public async Task<CollectionBrowseViewModel> GetByYearAsync(string userId, int year, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
             .Where(x => x.UserId == userId && x.Release.Year == year)
             .Select(x => new ReleaseCardQueryResult(
@@ -26,7 +31,7 @@ public class CollectionBrowseService : ICollectionBrowseService
                 x.Release.Images!.CoverUrl))
             .ToListAsync(cancellationToken);
 
-        return BuildBrowseViewModel("Year", year.ToString(), releases);
+        return BuildBrowseViewModel("Year", year.ToString(), discogsCoverSubfolderName, releases);
     }
 
     public async Task<CollectionBrowseViewModel?> GetByGenreIdAsync(string userId, int genreId, CancellationToken cancellationToken = default)
@@ -35,8 +40,11 @@ public class CollectionBrowseService : ICollectionBrowseService
         if (genre is null)
             return null;
 
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Release.GenreLinks.Any(x => x.GenreId == genreId))
+            .Where(x => x.UserId == userId && x.Release.GenreLinks.Any(y => y.GenreId == genreId))
             .Select(x => new ReleaseCardQueryResult(
                 x.Release.DiscogsReleaseId,
                 x.Release.Album,
@@ -46,7 +54,7 @@ public class CollectionBrowseService : ICollectionBrowseService
                 x.Release.Images!.CoverUrl))
             .ToListAsync(cancellationToken);
 
-        return BuildBrowseViewModel("Genre", genre.Name, releases);
+        return BuildBrowseViewModel("Genre", genre.Name, discogsCoverSubfolderName, releases);
     }
 
     public async Task<CollectionBrowseViewModel?> GetByStyleIdAsync(string userId, int styleId, CancellationToken cancellationToken = default)
@@ -55,8 +63,11 @@ public class CollectionBrowseService : ICollectionBrowseService
         if (style is null)
             return null;
 
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Release.StyleLinks.Any(x => x.StyleId == styleId))
+            .Where(x => x.UserId == userId && x.Release.StyleLinks.Any(y => y.StyleId == styleId))
             .Select(x => new ReleaseCardQueryResult(
                 x.Release.DiscogsReleaseId,
                 x.Release.Album,
@@ -66,16 +77,56 @@ public class CollectionBrowseService : ICollectionBrowseService
                 x.Release.Images!.CoverUrl))
             .ToListAsync(cancellationToken);
 
-        return BuildBrowseViewModel("Style", style.Name, releases);
+        return BuildBrowseViewModel("Style", style.Name, discogsCoverSubfolderName, releases);
     }
+
+    public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetGenreReleaseCountsAsync(string userId,
+        CancellationToken cancellationToken = default) =>
+        await _db.Genres.AsNoTracking()
+            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(u => u.UserId == userId)))
+            .Select(x => new CollectionBrowseGridRowViewModel
+            {
+                Id = x.Id,
+                Name = x.Name,
+                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(u => u.UserId == userId)),
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetStyleReleaseCountsAsync(string userId,
+        CancellationToken cancellationToken = default) =>
+        await _db.Styles.AsNoTracking()
+            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(u => u.UserId == userId)))
+            .Select(x => new CollectionBrowseGridRowViewModel
+            {
+                Id = x.Id,
+                Name = x.Name,
+                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(u => u.UserId == userId)),
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetLabelReleaseCountsAsync(string userId,
+        CancellationToken cancellationToken = default) =>
+        await _db.Labels.AsNoTracking()
+            .Where(x => x.Releases.Any(y => y.UserAssociations.Any(u => u.UserId == userId)))
+            .Select(x => new CollectionBrowseGridRowViewModel
+            {
+                Id = x.Id,
+                Name = x.Name,
+                ReleaseCount = x.Releases.Count(y => y.UserAssociations.Any(u => u.UserId == userId)),
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
 
     private static CollectionBrowseViewModel BuildBrowseViewModel(
         string dimensionLabel,
         string valueTitle,
+        string? discogsCoverSubfolderName,
         IEnumerable<ReleaseCardQueryResult> releaseRows)
     {
         var releases = releaseRows
-            .Select(ToCard)
+            .Select(x => ToCard(discogsCoverSubfolderName, x))
             .OrderBy(r => r.Album, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -87,12 +138,16 @@ public class CollectionBrowseService : ICollectionBrowseService
         };
     }
 
-    private static CollectionReleaseCardViewModel ToCard(ReleaseCardQueryResult row) =>
+    private static CollectionReleaseCardViewModel ToCard(string? discogsCoverSubfolderName, ReleaseCardQueryResult row) =>
         new(
             row.ReleaseId,
             row.Album,
             row.Year,
-            CoverImageUrlResolver.ResolveForGrid(row.LocalThumbnailFilename, row.LocalImageFilename, row.CoverUrl));
+            CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                discogsCoverSubfolderName,
+                row.LocalThumbnailFilename,
+                row.LocalImageFilename,
+                row.CoverUrl));
 
     private readonly record struct ReleaseCardQueryResult(
         int ReleaseId,

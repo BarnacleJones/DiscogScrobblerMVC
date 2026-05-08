@@ -2,6 +2,10 @@ using DiscogsApiClient;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Caching;
+using DiscogScrobblerMVC.Services.Discogs;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -34,8 +38,11 @@ public class LabelService : ILabelService
         _logger = logger;
     }
 
-    public async Task<LabelViewModel?> GetLabel(int id, CancellationToken cancellationToken = default)
+    public async Task<LabelViewModel?> GetLabel(int id, string userId, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName =
+            await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(_db, userId, cancellationToken);
+
         var label = await _db.Labels.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
 
         if (label is null)
@@ -103,7 +110,7 @@ public class LabelService : ILabelService
         }
 
         var collectionReleases = await _db.Releases.AsNoTracking()
-            .Where(x => x.Labels.Any(x => x.Id == id))
+            .Where(x => x.Labels.Any(y => y.Id == id) && x.UserAssociations.Any(u => u.UserId == userId))
             .Select(x => new ReleaseCardQueryResult(
                 x.DiscogsReleaseId,
                 x.Album,
@@ -113,20 +120,21 @@ public class LabelService : ILabelService
                 x.Images!.CoverUrl))
             .ToListAsync(cancellationToken);
 
-        return ToViewModel(label, profile, imageUrl, collectionReleases);
+        return ToViewModel(label, profile, imageUrl, discogsCoverSubfolderName, collectionReleases);
     }
 
     private static LabelViewModel ToViewModel(
         Label label,
         string? profile,
         string? imageUrl,
+        string? discogsCoverSubfolderName,
         IEnumerable<ReleaseCardQueryResult> collectionReleases) =>
         new()
         {
             Id = label.Id,
             Name = label.Name,
             Profile = profile,
-            ImageUrl = CoverImageUrlResolver.ResolveForGrid(
+            ImageUrl = CoverImageUrlResolver.ResolveLabelProfileImageForGrid(
                 label.LocalThumbnailFilename,
                 label.LocalImageFilename,
                 imageUrl),
@@ -135,7 +143,11 @@ public class LabelService : ILabelService
                     x.ReleaseId,
                     x.Album,
                     x.Year,
-                    CoverImageUrlResolver.ResolveForGrid(x.LocalThumbnailFilename, x.LocalImageFilename, x.CoverUrl)))
+                    CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                        discogsCoverSubfolderName,
+                        x.LocalThumbnailFilename,
+                        x.LocalImageFilename,
+                        x.CoverUrl)))
                 .OrderByDescending(x => x.Year)
                 .ToList(),
         };

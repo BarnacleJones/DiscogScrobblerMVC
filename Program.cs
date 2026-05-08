@@ -1,6 +1,5 @@
 using Serilog;
 using DiscogsApiClient;
-using DiscogsApiClient.Authentication;
 using DiscogScrobblerMVC;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -10,6 +9,13 @@ using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
 using DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Background;
+using DiscogScrobblerMVC.Services.Discogs;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.LastFm;
+using DiscogScrobblerMVC.Services.Queues;
+using DiscogScrobblerMVC.Services.Settings;
+using DiscogScrobblerMVC.Services.Utilities;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,6 +69,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequireUppercase = false;
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
 builder.Services.AddDiscogsApiClient(options =>
@@ -83,6 +90,7 @@ builder.Services.AddScoped<IScrobbleService, ScrobbleService>();
 builder.Services.AddScoped<ITrackService, TrackService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<ISettingsPageService, SettingsPageService>();
+builder.Services.AddScoped<IAccountApprovalService, AccountApprovalService>();
 builder.Services.AddHostedService<DiscogsBackgroundService>();
 builder.Services.AddSingleton<IDiscogsSyncQueue, DiscogsSyncQueue>();
 builder.Services.AddHostedService<DiscogsOnDemandSyncService>();
@@ -166,31 +174,24 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 
-// migrations on startup
-using (var scope = app.Services.CreateScope())
+// migrations on startup + ensure Identity roles exist
+await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    await db.Database.MigrateAsync();
+
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    if (!await roleManager.RoleExistsAsync(AppRoles.Admin))
+    {
+        var created = await roleManager.CreateAsync(new IdentityRole(AppRoles.Admin));
+        if (!created.Succeeded)
+        {
+            var errors = string.Join("; ", created.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Could not create {AppRoles.Admin} role: {errors}");
+        }
+    }
 }
 
-// Discogs: consumer key/secret alone do not authenticate as a user. Owner-only endpoints (e.g. collection value)
-// need a Personal Access Token from https://www.discogs.com/settings/developers
-using (var scope = app.Services.CreateScope())
-{
-    var discogsAuth = scope.ServiceProvider.GetRequiredService<IDiscogsAuthenticationService>();
-    // Discogs docs call this a "user token" (Generate token); same as personal access token — not your consumer key/secret.
-    var userToken = app.Configuration["Discogs:PersonalAccessToken"]?.Trim()
-                    ?? app.Configuration["Discogs:UserToken"]?.Trim();
-    if (!string.IsNullOrEmpty(userToken))
-    {
-        discogsAuth.AuthenticateWithPersonalAccessToken(userToken);
-        Log.Information("Discogs user/personal token configured; owner-authenticated API calls are enabled.");
-    }
-    else
-    {
-        Log.Information(
-            "No Discogs user token: set Discogs:PersonalAccessToken or Discogs:UserToken (same value). On discogs.com → Settings → Developers click Generate token — this is separate from consumer key/secret.");
-    }
-}
+// Discogs owner APIs (collection sync, collection value): each user stores a personal access token via Settings.
 
 app.Run();

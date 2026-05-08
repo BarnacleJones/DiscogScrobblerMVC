@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DiscogScrobblerMVC.Controllers;

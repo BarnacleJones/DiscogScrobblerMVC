@@ -1,8 +1,8 @@
 using DiscogScrobblerMVC.Models;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Interfaces;
 
 public interface ILabelService
 {
-    Task<LabelViewModel?> GetLabel(int id, CancellationToken cancellationToken = default);
+    Task<LabelViewModel?> GetLabel(int id, string userId, CancellationToken cancellationToken = default);
 }

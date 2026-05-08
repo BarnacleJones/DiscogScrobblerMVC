@@ -1,6 +1,6 @@
 declare const $: any;
 
-const COVERS_PER_ROLL = 3;
+const COVERS_PER_ROLL = 6;
 
 function pickRandomCovers(allCovers: string[], count: number): string[] {
     const remaining = [...allCovers];

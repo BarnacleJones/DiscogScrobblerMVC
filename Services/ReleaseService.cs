@@ -1,6 +1,8 @@
 using DiscogsApiClient;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;
@@ -18,8 +20,15 @@ public class ReleaseService : IReleaseService
         _logger = logger;
     }
 
-    public async Task<ReleaseViewModel?> GetRelease(int discogsReleaseId, CancellationToken cancellationToken = default)
+    public async Task<ReleaseViewModel?> GetRelease(
+        int discogsReleaseId,
+        string viewerApplicationUserId,
+        CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName =
+            await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+                _db, viewerApplicationUserId, cancellationToken);
+
         var release = await _db.Releases.AsNoTracking()
             .Where(x => x.DiscogsReleaseId == discogsReleaseId)
             .Select(x => new
@@ -31,19 +40,19 @@ public class ReleaseService : IReleaseService
                 x.Images!.LocalImageFilename,
                 x.Images!.CoverUrl,
                 Artists = x.Artists
-                    .Select(x => new ArtistLinkViewModel(x.Id, x.Name))
+                    .Select(y => new ArtistLinkViewModel(y.Id, y.Name))
                     .ToList(),
                 Labels = x.Labels
-                    .Select(x => new LabelLinkViewModel(x.Id, x.Name))
+                    .Select(y => new LabelLinkViewModel(y.Id, y.Name))
                     .ToList(),
                 Genres = x.GenreLinks
-                    .Select(x => new GenreLinkViewModel(x.GenreId, x.Genre.Name))
+                    .Select(y => new GenreLinkViewModel(y.GenreId, y.Genre.Name))
                     .ToList(),
                 Styles = x.StyleLinks
-                    .Select(x => new StyleLinkViewModel(x.StyleId, x.Style.Name))
+                    .Select(y => new StyleLinkViewModel(y.StyleId, y.Style.Name))
                     .ToList(),
                 Tracklist = x.Tracks
-                    .Select(x => new TrackViewModel { Position = x.Position, Title = x.Title, Duration = x.Duration })
+                    .Select(y => new TrackViewModel { Position = y.Position, Title = y.Title, Duration = y.Duration })
                     .ToList(),
             })
             .FirstOrDefaultAsync(cancellationToken);
@@ -70,7 +79,10 @@ public class ReleaseService : IReleaseService
             DiscogsMasterId = release.DiscogsMasterId,
             Album = release.Album,
             Year = release.Year,
-            CoverUrl = CoverImageUrlResolver.ResolveForHero(release.LocalImageFilename, release.CoverUrl),
+            CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForHero(
+                discogsCoverSubfolderName,
+                release.LocalImageFilename,
+                release.CoverUrl),
             Have = usersOwningRelease,
             Want = usersWantingRelease,
             Artists = release.Artists,
@@ -107,7 +119,7 @@ public class ReleaseService : IReleaseService
 
         return randomReleaseId is null
             ? null
-            : await GetRelease(randomReleaseId.Value, cancellationToken);
+            : await GetRelease(randomReleaseId.Value, userId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<RandomReleaseChoiceViewModel>> GetRandomReleaseChoicesForUser(
@@ -126,6 +138,9 @@ public class ReleaseService : IReleaseService
         var releaseCount = await userReleaseIds.CountAsync(cancellationToken);
         if (releaseCount == 0)
             return [];
+
+        var discogsCoverSubfolderName =
+            await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(_db, userId, cancellationToken);
 
         var offsets = PickRandomOffsets(releaseCount, Math.Min(count, releaseCount));
         var releaseIds = new List<int>(offsets.Count);
@@ -159,7 +174,8 @@ public class ReleaseService : IReleaseService
             {
                 ReleaseId = x.DiscogsReleaseId,
                 Album = x.Album,
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),

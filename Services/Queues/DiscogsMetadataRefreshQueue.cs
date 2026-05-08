@@ -1,6 +1,8 @@
 using System.Threading.Channels;
+using DiscogScrobblerMVC.Services.Background;
+using DiscogScrobblerMVC.Services.Interfaces;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Queues;
 
 /// <summary>
 /// Artist/label Discogs profile refresh can take a long time (rate limits, many rows). Settings enqueues;

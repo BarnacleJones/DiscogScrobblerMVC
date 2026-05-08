@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Labels";
+}
+
+<div class="section-label mt-3">Labels</div>
+
+<div class="d-flex align-items-center justify-content-center justify-content-sm-start gap-2 mt-2 mb-2">
+    <button id="clearLabelsFilterBtn" type="button" class="btn btn-outline-secondary btn-sm">
+        Clear filter
+    </button>
+</div>
+
+<div class="theme-data-grid">
+<table id="labelsTable" class="table table-hover w-100">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Releases</th>
+        </tr>
+    </thead>
+</table>
+</div>
+
+@section Scripts {
+    <partial name="_DataTablesAssetsPartial" />
+    <script src="~/js/labels.js" asp-append-version="true"></script>
+}

@@ -5,7 +5,9 @@ using DiscogsApiClient.Exceptions;
 using DiscogsApiClient.QueryParameters;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Data.Entities;
-using Microsoft.AspNetCore.Hosting;
+using DiscogScrobblerMVC.Services.Caching;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -13,7 +15,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Discogs;
 
 public class DiscogsService : IDiscogsService
 {
@@ -29,7 +31,7 @@ public class DiscogsService : IDiscogsService
     private readonly DiscogsExclusiveGate _discogsExclusiveGate;
     private readonly IMemoryCache _memoryCache;
     private readonly string _imageBasePath;
-    private string? _writableImageDirectory;
+    private string? _writableBaseImageDirectory;
     private const int ThumbnailMaxWidth = 220;
     private const int ThumbnailQuality = 75;
     private static readonly TimeSpan DiscogsRequestDelay = TimeSpan.FromMilliseconds(1100);
@@ -57,10 +59,10 @@ public class DiscogsService : IDiscogsService
     }
 
     // Prefer configured/mounted folder (e.g. /app/images). If that cannot be created (read-only root), fall back to process temp.
-    private string GetWritableImageDirectory()
+    private string EnsureWritableBaseImageDirectory()
     {
-        if (_writableImageDirectory is not null)
-            return _writableImageDirectory;
+        if (_writableBaseImageDirectory is not null)
+            return _writableBaseImageDirectory;
 
         var fallbackDir = Path.Combine(Path.GetTempPath(), "DiscogScrobblerMVC", "images");
 
@@ -72,7 +74,7 @@ public class DiscogsService : IDiscogsService
             try
             {
                 Directory.CreateDirectory(candidate);
-                _writableImageDirectory = candidate;
+                _writableBaseImageDirectory = candidate;
                 if (!isConfiguredPath)
                 {
                     _logger.LogWarning(
@@ -104,10 +106,31 @@ public class DiscogsService : IDiscogsService
             "No writable folder for Discogs cover images. Mount a writable path (see HOSTING.md) or set App:ImageBasePath.");
     }
 
-
-    public void Authenticate(string token)
+    private bool TryEnsurePerDiscogsUserCoverDirectory(string ownerDiscogsUsername, out string absoluteCoverDirectory)
     {
+        absoluteCoverDirectory = "";
+        if (!CoverStoragePathResolver.TryGetDiscogsCoverSubfolderName(ownerDiscogsUsername, out var coverSubfolderName))
+            return false;
+
+        var sharedBaseDirectory = EnsureWritableBaseImageDirectory();
+        absoluteCoverDirectory = Path.Combine(sharedBaseDirectory, coverSubfolderName);
+        Directory.CreateDirectory(absoluteCoverDirectory);
+        return true;
+    }
+
+    public void Authenticate(string token) =>
         _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(token);
+
+    private async Task<string?> TryGetPlainDiscogsTokenForUserAsync(
+        string applicationUserId,
+        CancellationToken cancellationToken)
+    {
+        var token = await _db.Users.AsNoTracking()
+            .Where(u => u.Id == applicationUserId)
+            .Select(u => u.DiscogsPersonalAccessToken)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return string.IsNullOrWhiteSpace(token) ? null : token.Trim();
     }
 
     public async Task SyncCollection(string discogsUsername, string userId)
@@ -150,6 +173,19 @@ public class DiscogsService : IDiscogsService
         LabelSyncCache labelCache,
         CancellationToken cancellationToken)
     {
+        var plainToken = await TryGetPlainDiscogsTokenForUserAsync(applicationUserId, cancellationToken);
+        if (plainToken is not null)
+            _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(plainToken);
+        else
+        {
+            DiscogsAuthenticationAnonymousHelper.ClearPersonalAccessStateForAnonymousRequests(
+                _discogsAuthenticationService,
+                _logger);
+            _logger.LogInformation(
+                "Discogs collection sync for user {UserId} has no saved token — requesting only what Discogs allows without owner auth (typically folder 0 if the collection is public).",
+                applicationUserId);
+        }
+
         var foldersResponse = await _discogsApiClient.GetCollectionFolders(discogsUsername, cancellationToken);
         var folderIds = foldersResponse.Folders.Where(x => x.Id != 0).Select(x => x.Id).Distinct().OrderBy(x => x).ToList();
         // If only the special "All" folder is present, sync it so empty collections do not regress.
@@ -244,6 +280,10 @@ public class DiscogsService : IDiscogsService
             foreach (var a in artists) release.Artists.Add(a);
             foreach (var l in labels)  release.Labels.Add(l);
 
+            // Cached artists/labels come from AsNoTracking queries; without attaching them first,
+            // DbSet.Add(release) marks the whole graph as inserted and duplicates PKs on Artists/Labels.
+            AttachExistingArtistsAndLabelsForReleaseGraph(artists, labels);
+
             _db.Releases.Add(release);
             _db.DiscogsReleaseImages.Add(new DiscogsReleaseImages
             {
@@ -291,6 +331,21 @@ public class DiscogsService : IDiscogsService
             existingUserLink.DiscogsReleaseId  = item.Id;
             if (existingUserLink.DateAdded != item.AddedAt)
                 existingUserLink.DateAdded = item.AddedAt;
+        }
+    }
+
+    private void AttachExistingArtistsAndLabelsForReleaseGraph(IEnumerable<Artist> artists, IEnumerable<Label> labels)
+    {
+        foreach (var a in artists)
+        {
+            if (a.Id != 0 && _db.Entry(a).State == EntityState.Detached)
+                _db.Artists.Attach(a);
+        }
+
+        foreach (var l in labels)
+        {
+            if (l.Id != 0 && _db.Entry(l).State == EntityState.Detached)
+                _db.Labels.Attach(l);
         }
     }
 
@@ -469,6 +524,16 @@ public class DiscogsService : IDiscogsService
             await _discogsExclusiveGate.WaitAsync(cancellationToken);
             try
             {
+                var plainToken = await TryGetPlainDiscogsTokenForUserAsync(applicationUserId, cancellationToken);
+                if (plainToken is null)
+                {
+                    _logger.LogInformation(
+                        "Skipping Discogs collection value refresh: no token for user {UserId}",
+                        applicationUserId);
+                    return;
+                }
+
+                _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(plainToken);
                 var value = await _discogsApiClient.GetCollectionValue(discogsUsername, cancellationToken);
                 var userRow = await _db.Users.FirstOrDefaultAsync(u => u.Id == applicationUserId, cancellationToken);
                 if (userRow is null)
@@ -496,17 +561,18 @@ public class DiscogsService : IDiscogsService
 
     public async Task SyncCollectionInBackground(CancellationToken ct)
     {
-        var usersWithDiscogsUsernames = await _db.Users.Where(x => x.DiscogsUsername != null)
+        var usersWithDiscogs = await _db.Users
+            .Where(x => x.DiscogsUsername != null)
             .ToListAsync(ct);
 
         _logger.LogInformation(
             "Starting scheduled Discogs collection sync for {UserCount} users.",
-            usersWithDiscogsUsernames.Count);
+            usersWithDiscogs.Count);
 
         var artistCache = await ArtistSyncCache.LoadAsync(_db, ct);
         var labelCache  = await LabelSyncCache.LoadAsync(_db, ct);
 
-        foreach (var user in usersWithDiscogsUsernames)
+        foreach (var user in usersWithDiscogs)
         {
             if (string.IsNullOrWhiteSpace(user.DiscogsUsername))
                 continue;
@@ -519,7 +585,7 @@ public class DiscogsService : IDiscogsService
 
         _logger.LogInformation(
             "Scheduled Discogs collection sync complete for {UserCount} users.",
-            usersWithDiscogsUsernames.Count);
+            usersWithDiscogs.Count);
     }
 
     public async Task SyncUserInBackground(string applicationUserId, CancellationToken ct)
@@ -570,24 +636,10 @@ public class DiscogsService : IDiscogsService
 
     private async Task DownloadMissingImagesCore(CancellationToken ct)
     {
-        var imageCandidates = await _db.DiscogsReleaseImages
-            // Include all rows that can potentially be repaired.
-            .Where(x => x.CoverUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
-            .Select(x => new
-            {
-                Image = x,
-                Album = x.Release.Album,
-            })
-            .ToListAsync(ct);
-
-        _logger.LogInformation(
-            "Checking {Count} release cover image records for missing local assets.",
-            imageCandidates.Count);
-
-        string imageDir;
+        string baseImageDir;
         try
         {
-            imageDir = GetWritableImageDirectory();
+            baseImageDir = EnsureWritableBaseImageDirectory();
         }
         catch (InvalidOperationException ex)
         {
@@ -595,20 +647,47 @@ public class DiscogsService : IDiscogsService
             return;
         }
 
+        var coverRowsForOwnersWithDiscogsUsername = await (
+            from releaseCover in _db.DiscogsReleaseImages
+            where releaseCover.CoverUrl != null
+                  || releaseCover.LocalImageFilename != null
+                  || releaseCover.LocalThumbnailFilename != null
+            from assoc in releaseCover.Release.UserAssociations
+            join u in _db.Users on assoc.UserId equals u.Id
+            where u.DiscogsUsername != null && !string.IsNullOrWhiteSpace(u.DiscogsUsername)
+            select new
+            {
+                Cover = releaseCover,
+                OwnerDiscogsUsername = u.DiscogsUsername!.Trim(),
+                AlbumName = releaseCover.Release.Album,
+            }).ToListAsync(ct);
+
+        var distinctDownloadTargets = coverRowsForOwnersWithDiscogsUsername
+            .GroupBy(x => new { x.Cover.Id, x.OwnerDiscogsUsername })
+            .Select(g => g.First())
+            .ToList();
+
+        _logger.LogInformation(
+            "Checking {Count} release cover download targets (per Discogs collection owner).",
+            distinctDownloadTargets.Count);
+
         var preparedCount = 0;
         var failedCount = 0;
 
-        foreach (var item in imageCandidates)
+        foreach (var target in distinctDownloadTargets)
         {
-            var image = item.Image;
+            if (!TryEnsurePerDiscogsUserCoverDirectory(target.OwnerDiscogsUsername, out var perUserCoverDirectory))
+                continue;
+
+            var releaseCover = target.Cover;
             try
             {
-                var fullImagePath = string.IsNullOrWhiteSpace(image.LocalImageFilename)
+                var fullImagePath = string.IsNullOrWhiteSpace(releaseCover.LocalImageFilename)
                     ? null
-                    : Path.Combine(imageDir, image.LocalImageFilename);
-                var thumbImagePath = string.IsNullOrWhiteSpace(image.LocalThumbnailFilename)
+                    : Path.Combine(perUserCoverDirectory, releaseCover.LocalImageFilename);
+                var thumbImagePath = string.IsNullOrWhiteSpace(releaseCover.LocalThumbnailFilename)
                     ? null
-                    : Path.Combine(imageDir, image.LocalThumbnailFilename);
+                    : Path.Combine(perUserCoverDirectory, releaseCover.LocalThumbnailFilename);
 
                 var needsFullImage = string.IsNullOrWhiteSpace(fullImagePath) || !File.Exists(fullImagePath);
                 var needsThumbnail = string.IsNullOrWhiteSpace(thumbImagePath) || !File.Exists(thumbImagePath);
@@ -619,21 +698,21 @@ public class DiscogsService : IDiscogsService
 
                 if (needsFullImage)
                 {
-                    if (!TryResolveCoverHttpUri(image.CoverUrl, out var coverUri))
+                    if (!TryResolveCoverHttpUri(releaseCover.CoverUrl, out var coverUri))
                     {
                         _logger.LogWarning(
                             "Skipping cover download for release {ReleaseId}: invalid or non-http(s) CoverUrl {Url}",
-                            image.DiscogsReleaseId,
-                            image.CoverUrl);
+                            releaseCover.DiscogsReleaseId,
+                            releaseCover.CoverUrl);
                         continue;
                     }
 
                     fullSizeBytes = await _http.GetByteArrayAsync(coverUri, ct);
-                    var filename = $"{image.DiscogsReleaseId}.jpg";
-                    var path = Path.Combine(imageDir, filename);
+                    var filename = $"{releaseCover.DiscogsReleaseId}.jpg";
+                    var path = Path.Combine(perUserCoverDirectory, filename);
                     await File.WriteAllBytesAsync(path, fullSizeBytes, ct);
 
-                    image.LocalImageFilename = filename; // store filename only
+                    releaseCover.LocalImageFilename = filename;
                     fullImagePath = path;
                 }
 
@@ -643,47 +722,56 @@ public class DiscogsService : IDiscogsService
                     {
                         _logger.LogWarning(
                             "Cannot generate thumbnail for release {ReleaseId}: full-size local image is unavailable.",
-                            image.DiscogsReleaseId);
+                            releaseCover.DiscogsReleaseId);
                         continue;
                     }
 
-                    // Reuse downloaded bytes when available to avoid a second disk read.
-                    fullSizeBytes ??= await ReadExistingImageBytesAsync(imageDir, image.LocalImageFilename!, ct);
-                    var thumbFilename = $"{image.DiscogsReleaseId}-thumb.jpg";
-                    var thumbPath = Path.Combine(imageDir, thumbFilename);
+                    fullSizeBytes ??= await ReadExistingReleaseCoverBytesAsync(
+                        perUserCoverDirectory, releaseCover.LocalImageFilename!, ct);
+                    var thumbFilename = $"{releaseCover.DiscogsReleaseId}-thumb.jpg";
+                    var thumbPath = Path.Combine(perUserCoverDirectory, thumbFilename);
                     await WriteThumbnailAsync(fullSizeBytes, thumbPath, ct);
-                    image.LocalThumbnailFilename = thumbFilename;
+                    releaseCover.LocalThumbnailFilename = thumbFilename;
                 }
 
-                // Save after each one so progress isn't lost on crash
                 await _db.SaveChangesAsync(ct);
 
-                _logger.LogInformation("Prepared local cover assets for album {0} with release id {1}", item.Album, image.DiscogsReleaseId);
+                _logger.LogInformation(
+                    "Prepared local cover assets for album {0} with release id {1}",
+                    target.AlbumName,
+                    releaseCover.DiscogsReleaseId);
                 preparedCount++;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to prepare local cover assets for album {0} with release id {1}", item.Album, image.DiscogsReleaseId);
+                _logger.LogWarning(
+                    ex,
+                    "Failed to prepare local cover assets for album {0} with release id {1}",
+                    target.AlbumName,
+                    releaseCover.DiscogsReleaseId);
                 failedCount++;
             }
             finally
             {
-                // Be polite — failures used to skip the delay and hammer remote hosts in a tight loop.
                 await Task.Delay(DiscogsRequestDelay, ct);
             }
         }
 
-        await DownloadMissingArtistImagesCore(imageDir, ct);
-        await DownloadMissingLabelImagesCore(imageDir, ct);
+        await DownloadMissingArtistImagesCore(baseImageDir, ct);
+        await DownloadMissingLabelImagesCore(baseImageDir, ct);
 
         _logger.LogInformation(
-            "Release cover asset check complete. Prepared {PreparedCount}; failed {FailedCount}.",
+            "Release cover asset checks complete for all Discogs owners. Prepared {PreparedCount}; failed {FailedCount}.",
             preparedCount,
             failedCount);
     }
 
-    private async Task DownloadMissingArtistImagesCore(string imageDir, CancellationToken ct)
+    private async Task DownloadMissingArtistImagesCore(string catalogImagesRootDirectory, CancellationToken ct)
     {
+        var artistProfilesDirectory =
+            Path.Combine(catalogImagesRootDirectory, CoverStoragePathResolver.SharedArtistProfileSubfolder);
+        Directory.CreateDirectory(artistProfilesDirectory);
+
         var imageCandidates = await _db.Artists
             .Where(x => x.DiscogsImageUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
             .Select(x => new
@@ -707,10 +795,10 @@ public class DiscogsService : IDiscogsService
             {
                 var fullImagePath = string.IsNullOrWhiteSpace(artist.LocalImageFilename)
                     ? null
-                    : Path.Combine(imageDir, artist.LocalImageFilename);
+                    : Path.Combine(artistProfilesDirectory, artist.LocalImageFilename);
                 var thumbImagePath = string.IsNullOrWhiteSpace(artist.LocalThumbnailFilename)
                     ? null
-                    : Path.Combine(imageDir, artist.LocalThumbnailFilename);
+                    : Path.Combine(artistProfilesDirectory, artist.LocalThumbnailFilename);
 
                 var needsFullImage = string.IsNullOrWhiteSpace(fullImagePath) || !File.Exists(fullImagePath);
                 var needsThumbnail = string.IsNullOrWhiteSpace(thumbImagePath) || !File.Exists(thumbImagePath);
@@ -733,7 +821,7 @@ public class DiscogsService : IDiscogsService
 
                     fullSizeBytes = await _http.GetByteArrayAsync(imageUri, ct);
                     var filename = $"artist-{imageKey}.jpg";
-                    var path = Path.Combine(imageDir, filename);
+                    var path = Path.Combine(artistProfilesDirectory, filename);
                     await File.WriteAllBytesAsync(path, fullSizeBytes, ct);
 
                     artist.LocalImageFilename = filename;
@@ -750,9 +838,12 @@ public class DiscogsService : IDiscogsService
                         continue;
                     }
 
-                    fullSizeBytes ??= await ReadExistingImageBytesAsync(imageDir, artist.LocalImageFilename!, ct);
+                    fullSizeBytes ??= await ReadExistingCatalogImageBytesAsync(
+                        artistProfilesDirectory,
+                        artist.LocalImageFilename!,
+                        ct);
                     var thumbFilename = $"artist-{imageKey}-thumb.jpg";
-                    var thumbPath = Path.Combine(imageDir, thumbFilename);
+                    var thumbPath = Path.Combine(artistProfilesDirectory, thumbFilename);
                     await WriteThumbnailAsync(fullSizeBytes, thumbPath, ct);
                     artist.LocalThumbnailFilename = thumbFilename;
                 }
@@ -778,8 +869,12 @@ public class DiscogsService : IDiscogsService
             failedCount);
     }
 
-    private async Task DownloadMissingLabelImagesCore(string imageDir, CancellationToken ct)
+    private async Task DownloadMissingLabelImagesCore(string catalogImagesRootDirectory, CancellationToken ct)
     {
+        var labelProfilesDirectory =
+            Path.Combine(catalogImagesRootDirectory, CoverStoragePathResolver.SharedLabelProfileSubfolder);
+        Directory.CreateDirectory(labelProfilesDirectory);
+
         var imageCandidates = await _db.Labels
             .Where(x => x.DiscogsImageUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
             .Select(x => new
@@ -803,10 +898,10 @@ public class DiscogsService : IDiscogsService
             {
                 var fullImagePath = string.IsNullOrWhiteSpace(label.LocalImageFilename)
                     ? null
-                    : Path.Combine(imageDir, label.LocalImageFilename);
+                    : Path.Combine(labelProfilesDirectory, label.LocalImageFilename);
                 var thumbImagePath = string.IsNullOrWhiteSpace(label.LocalThumbnailFilename)
                     ? null
-                    : Path.Combine(imageDir, label.LocalThumbnailFilename);
+                    : Path.Combine(labelProfilesDirectory, label.LocalThumbnailFilename);
 
                 var needsFullImage = string.IsNullOrWhiteSpace(fullImagePath) || !File.Exists(fullImagePath);
                 var needsThumbnail = string.IsNullOrWhiteSpace(thumbImagePath) || !File.Exists(thumbImagePath);
@@ -829,7 +924,7 @@ public class DiscogsService : IDiscogsService
 
                     fullSizeBytes = await _http.GetByteArrayAsync(imageUri, ct);
                     var filename = $"label-{imageKey}.jpg";
-                    var path = Path.Combine(imageDir, filename);
+                    var path = Path.Combine(labelProfilesDirectory, filename);
                     await File.WriteAllBytesAsync(path, fullSizeBytes, ct);
 
                     label.LocalImageFilename = filename;
@@ -846,9 +941,12 @@ public class DiscogsService : IDiscogsService
                         continue;
                     }
 
-                    fullSizeBytes ??= await ReadExistingImageBytesAsync(imageDir, label.LocalImageFilename!, ct);
+                    fullSizeBytes ??= await ReadExistingCatalogImageBytesAsync(
+                        labelProfilesDirectory,
+                        label.LocalImageFilename!,
+                        ct);
                     var thumbFilename = $"label-{imageKey}-thumb.jpg";
-                    var thumbPath = Path.Combine(imageDir, thumbFilename);
+                    var thumbPath = Path.Combine(labelProfilesDirectory, thumbFilename);
                     await WriteThumbnailAsync(fullSizeBytes, thumbPath, ct);
                     label.LocalThumbnailFilename = thumbFilename;
                 }
@@ -874,9 +972,24 @@ public class DiscogsService : IDiscogsService
             failedCount);
     }
 
-    private static async Task<byte[]> ReadExistingImageBytesAsync(string imageDir, string localImageFilename, CancellationToken ct)
+    private static async Task<byte[]> ReadExistingReleaseCoverBytesAsync(
+        string perDiscogsUserCoverDirectory,
+        string storedFileNameOnly,
+        CancellationToken ct)
     {
-        var fullImagePath = Path.Combine(imageDir, localImageFilename);
+        var pathUnderDiscogsUser = Path.Combine(perDiscogsUserCoverDirectory, storedFileNameOnly);
+        if (!File.Exists(pathUnderDiscogsUser))
+            throw new FileNotFoundException("Release cover file not found in per-discogs-user folder.", pathUnderDiscogsUser);
+
+        return await File.ReadAllBytesAsync(pathUnderDiscogsUser, ct);
+    }
+
+    private static async Task<byte[]> ReadExistingCatalogImageBytesAsync(
+        string catalogImagesRootDirectory,
+        string storedFileNameOnly,
+        CancellationToken ct)
+    {
+        var fullImagePath = Path.Combine(catalogImagesRootDirectory, storedFileNameOnly);
         return await File.ReadAllBytesAsync(fullImagePath, ct);
     }
 

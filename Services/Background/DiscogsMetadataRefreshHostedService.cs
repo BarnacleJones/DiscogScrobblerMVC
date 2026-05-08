@@ -1,4 +1,6 @@
-namespace DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Interfaces;
+
+namespace DiscogScrobblerMVC.Services.Background;
 
 public sealed class DiscogsMetadataRefreshHostedService : BackgroundService
 {
