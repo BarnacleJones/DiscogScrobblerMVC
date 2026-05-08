@@ -1,4 +1,4 @@
-import { initScrobbleTwoStep } from './scrobbleTwoStep';
+import { initScrobbleTwoStep } from './shared/scrobbleTwoStep';
 
 declare const $: any;
 

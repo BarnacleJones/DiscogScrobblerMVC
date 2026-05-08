@@ -72,15 +72,15 @@ public class ScrobbleService : IScrobbleService
             .Select(x => new
             {
                 x.Album,
-                Artists = x.Artists.Select(x => x.Name).ToList(),
+                Artists = x.Artists.Select(y => y.Name).ToList(),
                 Tracks = x.Tracks
-                    .Where(x => x.Title != "")
-                    .Select(x => new
+                    .Where(y => y.Title != "")
+                    .Select(y => new
                     {
-                        x.Position,
-                        x.Title,
-                        x.Duration,
-                        x.DurationSeconds,
+                        y.Position,
+                        y.Title,
+                        y.Duration,
+                        y.DurationSeconds,
                     })
                     .ToList(),
             })

@@ -34,7 +34,7 @@ public class LabelService : ILabelService
         _logger = logger;
     }
 
-    public async Task<LabelViewModel?> GetLabel(int id, CancellationToken cancellationToken = default)
+    public async Task<LabelViewModel?> GetLabel(int id, string userId, CancellationToken cancellationToken = default)
     {
         var label = await _db.Labels.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
 
@@ -103,7 +103,7 @@ public class LabelService : ILabelService
         }
 
         var collectionReleases = await _db.Releases.AsNoTracking()
-            .Where(x => x.Labels.Any(x => x.Id == id))
+            .Where(x => x.Labels.Any(y => y.Id == id) && x.UserAssociations.Any(u => u.UserId == userId))
             .Select(x => new ReleaseCardQueryResult(
                 x.DiscogsReleaseId,
                 x.Album,

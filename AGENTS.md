@@ -20,7 +20,7 @@
 - Extract extension methods for repeated transformations/logic.
 - For read-only pages/API payloads, prefer narrow projections to view models over materializing entity graphs.
 - Keep custom in-memory ordering where EF cannot express the rule clearly (for example Discogs track positions).
-- I prefer 'x' in LINQ selecting/where clauses etc
+- I prefer 'x' in LINQ lambdas (but make the inner parameter y, so that the outer is not hidden)
 
 ## MVC / Razor / UI
 - Keep markup style and naming consistent across pages.

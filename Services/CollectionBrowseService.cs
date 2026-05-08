@@ -36,7 +36,7 @@ public class CollectionBrowseService : ICollectionBrowseService
             return null;
 
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Release.GenreLinks.Any(x => x.GenreId == genreId))
+            .Where(x => x.UserId == userId && x.Release.GenreLinks.Any(y => y.GenreId == genreId))
             .Select(x => new ReleaseCardQueryResult(
                 x.Release.DiscogsReleaseId,
                 x.Release.Album,
@@ -56,7 +56,7 @@ public class CollectionBrowseService : ICollectionBrowseService
             return null;
 
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Release.StyleLinks.Any(x => x.StyleId == styleId))
+            .Where(x => x.UserId == userId && x.Release.StyleLinks.Any(y => y.StyleId == styleId))
             .Select(x => new ReleaseCardQueryResult(
                 x.Release.DiscogsReleaseId,
                 x.Release.Album,
@@ -68,6 +68,45 @@ public class CollectionBrowseService : ICollectionBrowseService
 
         return BuildBrowseViewModel("Style", style.Name, releases);
     }
+
+    public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetGenreReleaseCountsAsync(string userId,
+        CancellationToken cancellationToken = default) =>
+        await _db.Genres.AsNoTracking()
+            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(u => u.UserId == userId)))
+            .Select(x => new CollectionBrowseGridRowViewModel
+            {
+                Id = x.Id,
+                Name = x.Name,
+                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(u => u.UserId == userId)),
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetStyleReleaseCountsAsync(string userId,
+        CancellationToken cancellationToken = default) =>
+        await _db.Styles.AsNoTracking()
+            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(u => u.UserId == userId)))
+            .Select(x => new CollectionBrowseGridRowViewModel
+            {
+                Id = x.Id,
+                Name = x.Name,
+                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(u => u.UserId == userId)),
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetLabelReleaseCountsAsync(string userId,
+        CancellationToken cancellationToken = default) =>
+        await _db.Labels.AsNoTracking()
+            .Where(x => x.Releases.Any(y => y.UserAssociations.Any(u => u.UserId == userId)))
+            .Select(x => new CollectionBrowseGridRowViewModel
+            {
+                Id = x.Id,
+                Name = x.Name,
+                ReleaseCount = x.Releases.Count(y => y.UserAssociations.Any(u => u.UserId == userId)),
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
 
     private static CollectionBrowseViewModel BuildBrowseViewModel(
         string dimensionLabel,

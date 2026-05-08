@@ -58,7 +58,7 @@ public class SettingsPageService : ISettingsPageService
 
         var coverCandidates = await _db.Releases
             .AsNoTracking()
-            .Where(x => x.UserAssociations.Any(x => x.UserId == user.Id))
+            .Where(x => x.UserAssociations.Any(y => y.UserId == user.Id))
             .Select(x => x.Images == null
                 ? null
                 : new

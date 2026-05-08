@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  // Scripts/scrobbleTwoStep.ts
+  // Scripts/shared/scrobbleTwoStep.ts
   var confirmPromptHtml = '<span class="d-inline-flex align-items-center justify-content-center gap-1"><i class="bi bi-check-lg" aria-hidden="true"></i><span>Confirm scrobble</span></span>';
   function submitScrobble(scrobbleButton, releaseId, postUrl) {
     scrobbleButton.prop("disabled", true).text("Scrobbling\u2026");

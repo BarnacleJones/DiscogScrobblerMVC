@@ -31,19 +31,19 @@ public class ReleaseService : IReleaseService
                 x.Images!.LocalImageFilename,
                 x.Images!.CoverUrl,
                 Artists = x.Artists
-                    .Select(x => new ArtistLinkViewModel(x.Id, x.Name))
+                    .Select(y => new ArtistLinkViewModel(y.Id, y.Name))
                     .ToList(),
                 Labels = x.Labels
-                    .Select(x => new LabelLinkViewModel(x.Id, x.Name))
+                    .Select(y => new LabelLinkViewModel(y.Id, y.Name))
                     .ToList(),
                 Genres = x.GenreLinks
-                    .Select(x => new GenreLinkViewModel(x.GenreId, x.Genre.Name))
+                    .Select(y => new GenreLinkViewModel(y.GenreId, y.Genre.Name))
                     .ToList(),
                 Styles = x.StyleLinks
-                    .Select(x => new StyleLinkViewModel(x.StyleId, x.Style.Name))
+                    .Select(y => new StyleLinkViewModel(y.StyleId, y.Style.Name))
                     .ToList(),
                 Tracklist = x.Tracks
-                    .Select(x => new TrackViewModel { Position = x.Position, Title = x.Title, Duration = x.Duration })
+                    .Select(y => new TrackViewModel { Position = y.Position, Title = y.Title, Duration = y.Duration })
                     .ToList(),
             })
             .FirstOrDefaultAsync(cancellationToken);

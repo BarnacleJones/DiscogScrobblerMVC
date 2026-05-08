@@ -4,5 +4,5 @@ namespace DiscogScrobblerMVC.Services;
 
 public interface ILabelService
 {
-    Task<LabelViewModel?> GetLabel(int id, CancellationToken cancellationToken = default);
+    Task<LabelViewModel?> GetLabel(int id, string userId, CancellationToken cancellationToken = default);
 }
