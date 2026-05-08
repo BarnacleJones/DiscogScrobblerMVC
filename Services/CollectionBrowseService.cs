@@ -36,7 +36,7 @@ public class CollectionBrowseService : ICollectionBrowseService
             return null;
 
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Release.GenreLinks.Any(x => x.GenreId == genreId))
+            .Where(x => x.UserId == userId && x.Release.GenreLinks.Any(y => y.GenreId == genreId))
             .Select(x => new ReleaseCardQueryResult(
                 x.Release.DiscogsReleaseId,
                 x.Release.Album,
@@ -56,7 +56,7 @@ public class CollectionBrowseService : ICollectionBrowseService
             return null;
 
         var releases = await _db.DiscogsReleaseToUsers.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Release.StyleLinks.Any(x => x.StyleId == styleId))
+            .Where(x => x.UserId == userId && x.Release.StyleLinks.Any(y => y.StyleId == styleId))
             .Select(x => new ReleaseCardQueryResult(
                 x.Release.DiscogsReleaseId,
                 x.Release.Album,

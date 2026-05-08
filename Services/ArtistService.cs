@@ -103,7 +103,7 @@ public class ArtistService : IArtistService
         }
 
         var collectionReleases = await _db.Releases.AsNoTracking()
-            .Where(x => x.Artists.Any(x => x.Id == id))
+            .Where(x => x.Artists.Any(y => y.Id == id))
             .Select(x => new ReleaseCardQueryResult(
                 x.DiscogsReleaseId,
                 x.Album,

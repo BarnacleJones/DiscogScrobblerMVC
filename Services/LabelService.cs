@@ -103,7 +103,7 @@ public class LabelService : ILabelService
         }
 
         var collectionReleases = await _db.Releases.AsNoTracking()
-            .Where(x => x.Labels.Any(x => x.Id == id))
+            .Where(x => x.Labels.Any(y => y.Id == id))
             .Select(x => new ReleaseCardQueryResult(
                 x.DiscogsReleaseId,
                 x.Album,
