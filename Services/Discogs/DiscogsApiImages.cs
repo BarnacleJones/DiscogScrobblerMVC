@@ -1,6 +1,6 @@
 using DiscogsApiClient.Contract;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Discogs;
 
 internal static class DiscogsApiImages
 {

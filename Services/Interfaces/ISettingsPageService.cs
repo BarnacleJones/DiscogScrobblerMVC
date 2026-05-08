@@ -1,7 +1,7 @@
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Interfaces;
 
 public interface ISettingsPageService
 {
@@ -11,9 +11,11 @@ public interface ISettingsPageService
         CancellationToken cancellationToken,
         SettingsViewModel? existingViewModel = null);
 
-    Task<SettingsSaveResult> SaveDiscogsUsernameAsync(
+    Task<SettingsSaveResult> SaveDiscogsSettingsAsync(
         ApplicationUser user,
         string? discogsUsername,
+        string? personalAccessTokenSubmission,
+        bool clearPersonalAccessToken,
         CancellationToken cancellationToken);
 
     Task<LastFmConnectResult> StartLastFmConnectionAsync(

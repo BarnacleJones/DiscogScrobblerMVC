@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Options;
+using DiscogScrobblerMVC.Services.Interfaces;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Background;
 
 public class DiscogsBackgroundService : BackgroundService
 {

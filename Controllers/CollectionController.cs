@@ -1,6 +1,7 @@
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
 using DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;

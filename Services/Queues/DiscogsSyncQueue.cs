@@ -1,6 +1,7 @@
 using System.Threading.Channels;
+using DiscogScrobblerMVC.Services.Interfaces;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Queues;
 
 // Full Discogs sync can take a long time (API rate limits, many releases). The Settings page only
 // needs to enqueue work; DiscogsOnDemandSyncService runs it in the background so the HTTP response

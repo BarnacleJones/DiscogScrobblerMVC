@@ -1,0 +1,29 @@
+@page
+@model RegistrationPendingModel
+@{
+    ViewData["Title"] = "Registration pending";
+}
+
+<div class="section-label mt-3">Account</div>
+
+<div class="row justify-content-center g-4">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+        <div class="card">
+            <div class="release-header px-3 pt-3 pb-2">
+                <div class="card-title mb-0">@ViewData["Title"]</div>
+            </div>
+            <div class="card-body pt-2">
+                <p class="mb-3">
+                    Your account was created, but an administrator must approve it before you can sign in.
+                </p>
+                <p class="text-secondary small mb-0">
+                    Ask the person who runs this server to open <strong>Settings</strong> and approve your email from the pending list.
+                </p>
+                <hr class="my-3" />
+                <p class="mb-0">
+                    <a class="btn btn-outline-primary" asp-page="./Login">Back to log in</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

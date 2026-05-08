@@ -1,5 +1,7 @@
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;
@@ -17,6 +19,9 @@ public class CollectionService : ICollectionService
 
     public async Task<IReadOnlyList<CollectionItemViewModel>> GetCollectionItemsAsync(string userId, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var collectionItems = await _db.DiscogsReleaseToUsers.AsNoTracking()
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.DateAdded)
@@ -47,7 +52,8 @@ public class CollectionService : ICollectionService
                 Album = x.Album,
                 Year = x.Year,
                 DateAdded = x.DateAdded,
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),
@@ -58,6 +64,9 @@ public class CollectionService : ICollectionService
     public async Task<IReadOnlyList<HomeRecentReleaseViewModel>> GetRecentCollectionReleasesAsync(
         string userId, int take, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
+
         var recentReleases = await _db.DiscogsReleaseToUsers.AsNoTracking()
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.DateAdded)
@@ -83,7 +92,8 @@ public class CollectionService : ICollectionService
                 Album = x.Album,
                 ArtistDisplay = FormatArtistDisplay(x.Artists),
                 Artists = x.Artists,
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),
@@ -98,6 +108,9 @@ public class CollectionService : ICollectionService
         var viewModel = new CollectionSearchViewModel { Query = trimmedSearchQuery };
         if (string.IsNullOrEmpty(trimmedSearchQuery))
             return viewModel;
+
+        var discogsCoverSubfolderName = await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+            _db, userId, cancellationToken);
 
         var searchPattern = $"%{EscapeLikePattern(trimmedSearchQuery)}%";
 
@@ -150,7 +163,8 @@ public class CollectionService : ICollectionService
                 Album = x.Album,
                 Year = x.Year,
                 ArtistDisplay = FormatArtistDisplay(x.Artists),
-                CoverUrl = CoverImageUrlResolver.ResolveForGrid(
+                CoverUrl = CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl),

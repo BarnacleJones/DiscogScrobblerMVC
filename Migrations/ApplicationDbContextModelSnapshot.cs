@@ -40,6 +40,9 @@ namespace DiscogScrobblerMVC.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("AccountApproved")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
@@ -54,6 +57,9 @@ namespace DiscogScrobblerMVC.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DiscogsCollectionValueMin")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DiscogsPersonalAccessToken")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DiscogsUsername")

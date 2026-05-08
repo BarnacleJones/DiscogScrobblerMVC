@@ -1,6 +1,7 @@
+using DiscogScrobblerMVC;
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
-using DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -15,15 +16,18 @@ public class SettingsController : ApplicationController
 
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ISettingsPageService _settingsPageService;
+    private readonly IAccountApprovalService _accountApprovalService;
     private readonly IConfiguration _configuration;
 
     public SettingsController(
         UserManager<ApplicationUser> userManager,
         ISettingsPageService settingsPageService,
+        IAccountApprovalService accountApprovalService,
         IConfiguration configuration)
     {
         _userManager = userManager;
         _settingsPageService = settingsPageService;
+        _accountApprovalService = accountApprovalService;
         _configuration = configuration;
     }
 
@@ -53,9 +57,11 @@ public class SettingsController : ApplicationController
         if (!ModelState.IsValid)
             return View(await BuildViewModelWithSubmissionAsync(user, submission, cancellationToken));
 
-        var saveResult = await _settingsPageService.SaveDiscogsUsernameAsync(
+        var saveResult = await _settingsPageService.SaveDiscogsSettingsAsync(
             user,
             submission.DiscogsUsername,
+            submission.DiscogsPersonalAccessToken,
+            submission.ClearDiscogsPersonalAccessToken,
             cancellationToken);
 
         if (!saveResult.Succeeded)
@@ -140,18 +146,52 @@ public class SettingsController : ApplicationController
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> ApproveRegistration(string userId, CancellationToken cancellationToken)
+    {
+        var admin = await GetCurrentUserAsync();
+        if (admin is null)
+            return Challenge();
+
+        var result = await _accountApprovalService.ApproveAsync(userId, admin, cancellationToken);
+        TempData["StatusMessage"] = result.Succeeded
+            ? "Account approved. They can sign in now."
+            : result.ErrorMessage ?? "Could not approve that account.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> DenyRegistration(string userId, CancellationToken cancellationToken)
+    {
+        var admin = await GetCurrentUserAsync();
+        if (admin is null)
+            return Challenge();
+
+        var result = await _accountApprovalService.DenyAsync(userId, admin, cancellationToken);
+        TempData["StatusMessage"] = result.Succeeded
+            ? "Registration request removed."
+            : result.ErrorMessage ?? "Could not deny that request.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task<ApplicationUser?> GetCurrentUserAsync() =>
         await _userManager.GetUserAsync(User);
 
     private async Task<SettingsViewModel> BuildViewModelWithSubmissionAsync(
         ApplicationUser user,
         SettingsViewModel submission,
-        CancellationToken cancellationToken) =>
-        await _settingsPageService.BuildViewModelAsync(
+        CancellationToken cancellationToken)
+    {
+        return await _settingsPageService.BuildViewModelAsync(
             user,
             BuildLastFmAuthorizationCallbackUri(),
             cancellationToken,
             submission);
+    }
 
     /// <remarks>
     /// Last.fm redirects to this URL after authorizing. Default is inferred from this HTTP request -

@@ -1,29 +1,57 @@
 using DiscogScrobblerMVC.Data.Entities;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Utilities;
 
 public static class CoverImageUrlResolver
 {
     private const string LocalImagesRequestPath = "/images";
 
-    // Grids/lists should prefer the lightest local variant.
-    public static string? ResolveForGrid(DiscogsReleaseImages? images) =>
-        ResolveForGrid(images?.LocalThumbnailFilename, images?.LocalImageFilename, images?.CoverUrl);
+    public static string? ResolveReleaseCoverForGrid(DiscogsReleaseImages? images, string? discogsCoverSubfolderName) =>
+        ResolveReleaseCoverForGrid(
+            discogsCoverSubfolderName,
+            images?.LocalThumbnailFilename,
+            images?.LocalImageFilename,
+            images?.CoverUrl);
 
-    public static string? ResolveForGrid(string? localThumbnailFilename, string? localImageFilename, string? fallbackCoverUrl) =>
-        ResolveLocalRequestPath(localThumbnailFilename)
-        ?? ResolveLocalRequestPath(localImageFilename)
+    public static string? ResolveReleaseCoverForGrid(
+        string? discogsCoverSubfolderName,
+        string? localThumbnailFilename,
+        string? localImageFilename,
+        string? fallbackCoverUrl) =>
+        ResolveUrlForFileUnderDiscogsUserFolder(discogsCoverSubfolderName, localThumbnailFilename)
+        ?? ResolveUrlForFileUnderDiscogsUserFolder(discogsCoverSubfolderName, localImageFilename)
         ?? fallbackCoverUrl;
 
-    // Hero images prioritize full-size local files for better detail.
-    public static string? ResolveForHero(DiscogsReleaseImages? images) =>
-        ResolveForHero(images?.LocalImageFilename, images?.CoverUrl);
+    public static string? ResolveReleaseCoverForHero(DiscogsReleaseImages? images, string? discogsCoverSubfolderName) =>
+        ResolveReleaseCoverForHero(
+            discogsCoverSubfolderName,
+            images?.LocalImageFilename,
+            images?.CoverUrl);
 
-    public static string? ResolveForHero(string? localImageFilename, string? fallbackCoverUrl) =>
-        ResolveLocalRequestPath(localImageFilename)
+    public static string? ResolveReleaseCoverForHero(
+        string? discogsCoverSubfolderName,
+        string? localImageFilename,
+        string? fallbackCoverUrl) =>
+        ResolveUrlForFileUnderDiscogsUserFolder(discogsCoverSubfolderName, localImageFilename)
         ?? fallbackCoverUrl;
 
-    private static string? ResolveLocalRequestPath(string? filename)
+    public static string? ResolveArtistProfileImageForGrid(
+        string? localThumbnailFilename,
+        string? localImageFilename,
+        string? fallbackCoverUrl) =>
+        ResolveSharedCatalogFileUrl(CoverStoragePathResolver.SharedArtistProfileSubfolder, localThumbnailFilename)
+        ?? ResolveSharedCatalogFileUrl(CoverStoragePathResolver.SharedArtistProfileSubfolder, localImageFilename)
+        ?? fallbackCoverUrl;
+
+    public static string? ResolveLabelProfileImageForGrid(
+        string? localThumbnailFilename,
+        string? localImageFilename,
+        string? fallbackCoverUrl) =>
+        ResolveSharedCatalogFileUrl(CoverStoragePathResolver.SharedLabelProfileSubfolder, localThumbnailFilename)
+        ?? ResolveSharedCatalogFileUrl(CoverStoragePathResolver.SharedLabelProfileSubfolder, localImageFilename)
+        ?? fallbackCoverUrl;
+
+    private static string? ResolveSharedCatalogFileUrl(string catalogSubfolder, string? filename)
     {
         if (string.IsNullOrWhiteSpace(filename))
             return null;
@@ -32,6 +60,19 @@ public static class CoverImageUrlResolver
         if (string.IsNullOrWhiteSpace(safeFileName))
             return null;
 
-        return $"{LocalImagesRequestPath}/{Uri.EscapeDataString(safeFileName)}";
+        return $"{LocalImagesRequestPath}/{Uri.EscapeDataString(catalogSubfolder)}/{Uri.EscapeDataString(safeFileName)}";
+    }
+
+    private static string? ResolveUrlForFileUnderDiscogsUserFolder(string? discogsCoverSubfolderName, string? filename)
+    {
+        if (string.IsNullOrWhiteSpace(discogsCoverSubfolderName) || string.IsNullOrWhiteSpace(filename))
+            return null;
+
+        var safeFileName = Path.GetFileName(filename);
+        if (string.IsNullOrWhiteSpace(safeFileName))
+            return null;
+
+        return
+            $"{LocalImagesRequestPath}/{Uri.EscapeDataString(discogsCoverSubfolderName)}/{Uri.EscapeDataString(safeFileName)}";
     }
 }

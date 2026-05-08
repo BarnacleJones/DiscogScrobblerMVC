@@ -1,4 +1,5 @@
 using DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

@@ -125,6 +125,17 @@ body {
   font-weight: 500;
 }
 
+.nav-link.position-relative .nav-settings-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  min-width: 1rem;
+  padding: 0.15em 0.4em;
+  line-height: 1.2;
+}
+
 .navbar-toggler {
   border: 1px solid var(--line2);
   padding: 4px 8px;
@@ -204,19 +215,6 @@ body {
   border-color: var(--accent2) !important;
   color: #0e0e0f !important;
 }
-.random-dice-button {
-  background: #0e0e0f;
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 500;
-}
-.random-dice-button:hover,
-.random-dice-button:focus,
-.random-dice-button:active {
-  background: var(--bg2) !important;
-  border-color: var(--accent2) !important;
-  color: var(--accent2) !important;
-}
 
 .btn-outline-secondary {
   background: transparent;
@@ -258,15 +256,48 @@ body {
   color: #0e0e0f;
 }
 
-/* Navbar: mobile subsection heading under Collection Browse */
-.nav-submenu-label {
-  display: block;
+.nav-submenu-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   font-family: var(--font-head);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--txt3);
+  color: var(--txt3) !important;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.nav-submenu-toggle:hover,
+.nav-submenu-toggle:focus {
+  color: var(--txt2) !important;
+  border-color: var(--line2);
+  outline: none;
+}
+.nav-submenu-toggle::after {
+  content: "";
+  flex-shrink: 0;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: auto;
+  border-right: 2px solid var(--txt3);
+  border-bottom: 2px solid var(--txt3);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease, border-color 0.15s;
+}
+.nav-submenu-toggle:hover::after,
+.nav-submenu-toggle:focus::after {
+  border-color: var(--txt2);
+}
+.nav-submenu-toggle:not(.collapsed)::after {
+  transform: rotate(-135deg);
 }
 
 /* Collection Browse dropdown — match dark navbar / card tokens */
@@ -522,8 +553,8 @@ td.dt-control {
   user-select: none;
 }
 
-.theme-data-grid td.dt-control::before,
-td.dt-control::before {
+/* Must beat DataTables' `table.dataTable tbody td.dt-control:before` (triangle placeholder). */
+.theme-data-grid table.table.dataTable tbody td.dt-control::before {
   content: '▶';
   transition: transform 0.15s;
   display: inline-block;
@@ -537,17 +568,14 @@ td.dt-control::before {
   box-shadow: none !important;
   opacity: 1 !important;
 }
-tr.dt-hasChild td.dt-control::before {
+
+.theme-data-grid table.table.dataTable tbody tr.dt-hasChild td.dt-control::before {
   transform: rotate(90deg);
   color: var(--accent) !important;
 }
 
-.theme-data-grid td.dt-control {
+.theme-data-grid table.table.dataTable tbody td.dt-control {
   color: var(--accent);
-}
-
-.theme-data-grid tr.dt-hasChild td.dt-control::before {
-  color: var(--accent) !important;
 }
 
 tr.child-row td {
@@ -663,6 +691,22 @@ tr.child-row td {
 }
 
 /* Random release dice */
+@keyframes random-dice-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.random-dice-button {
+  background: #0e0e0f;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 500;
+}
+.random-dice-button:is(:hover, :focus, :active) {
+  background: var(--bg2) !important;
+  border-color: var(--accent2) !important;
+  color: var(--accent2) !important;
+}
 .random-dice-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -671,15 +715,13 @@ tr.child-row td {
   max-width: 420px;
   margin: 0 auto;
 }
+.random-dice-grid--rolling {
+  animation: random-dice-shake 0.45s ease-in-out infinite;
+}
 .random-dice-choice {
   display: block;
   border-radius: 8px;
 }
-.random-dice-choice-1 { grid-area: 1 / 1; }
-.random-dice-choice-2 { grid-area: 1 / 3; }
-.random-dice-choice-3 { grid-area: 2 / 2; }
-.random-dice-choice-4 { grid-area: 3 / 1; }
-.random-dice-choice-5 { grid-area: 3 / 3; }
 .random-dice-cover {
   width: 100%;
   aspect-ratio: 1 / 1;

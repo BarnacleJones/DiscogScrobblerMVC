@@ -1,4 +1,4 @@
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Discogs;
 
 /// <summary>
 /// Serializes Discogs detail/image work across hosted services. The daily job and on-demand sync

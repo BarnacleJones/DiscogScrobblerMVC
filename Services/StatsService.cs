@@ -1,5 +1,6 @@
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscogScrobblerMVC.Services;

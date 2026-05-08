@@ -1,13 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Hqub.Lastfm;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.LastFm;
 
 public class LastFmOAuthService : ILastFmOAuthService
 {

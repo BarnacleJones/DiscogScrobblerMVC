@@ -8,6 +8,20 @@ interface RandomReleaseChoice {
     coverUrl?: string | null;
 }
 
+interface RandomDiceResponse {
+    diceFace: number;
+    choices: RandomReleaseChoice[];
+}
+
+const pipGridAreasByFace: Record<number, readonly string[]> = {
+    1: ['2 / 2'],
+    2: ['1 / 1', '3 / 3'],
+    3: ['1 / 1', '2 / 2', '3 / 3'],
+    4: ['1 / 1', '1 / 3', '3 / 1', '3 / 3'],
+    5: ['1 / 1', '1 / 3', '2 / 2', '3 / 1', '3 / 3'],
+    6: ['1 / 1', '1 / 3', '2 / 1', '2 / 3', '3 / 1', '3 / 3'],
+};
+
 function isRandomReleaseChoice(value: unknown): value is RandomReleaseChoice {
     if (!value || typeof value !== 'object') return false;
 
@@ -15,20 +29,47 @@ function isRandomReleaseChoice(value: unknown): value is RandomReleaseChoice {
     return typeof choice.releaseId === 'number' && typeof choice.album === 'string';
 }
 
-function renderDiceChoices(
+function parseRandomDiceResponse(raw: unknown): RandomDiceResponse | null {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+    const body = raw as Record<string, unknown>;
+    const face = body.face;
+    const choicesRaw = body.choices;
+
+    if (typeof face !== 'number' || face < 1 || face > 6) return null;
+    if (!Array.isArray(choicesRaw)) return null;
+
+    const choices = choicesRaw.filter(isRandomReleaseChoice);
+    return { diceFace: face, choices };
+}
+
+function setDiceGridRolling(diceGrid: any, isRolling: boolean): void {
+    diceGrid.toggleClass('random-dice-grid--rolling', isRolling);
+}
+
+function renderDiceChoicesOnFace(
     diceGrid: any,
+    diceFace: number,
     choices: RandomReleaseChoice[],
     fallbackCoverUrl: string,
 ): void {
     diceGrid.empty();
 
-    choices.forEach((choice, index) => {
+    const gridAreas = pipGridAreasByFace[diceFace];
+    if (!gridAreas) return;
+
+    const count = Math.min(choices.length, gridAreas.length);
+    for (let index = 0; index < count; index++) {
+        const choice = choices[index];
+        const gridArea = gridAreas[index];
+
         $('<a>')
             .attr({
                 href: `/release/${choice.releaseId}`,
                 'aria-label': `Open ${choice.album}`,
             })
-            .addClass(`random-dice-choice random-dice-choice-${index + 1}`)
+            .addClass('random-dice-choice')
+            .css('grid-area', gridArea)
             .append(
                 $('<img>')
                     .attr({
@@ -40,7 +81,7 @@ function renderDiceChoices(
                     .addClass('random-dice-cover')
             )
             .appendTo(diceGrid);
-    });
+    }
 }
 
 function initRandomReleaseDice(): void {
@@ -65,6 +106,7 @@ function initRandomReleaseDice(): void {
 
     rollDiceButton.on('click', () => {
         rollDiceButton.prop('disabled', true);
+        setDiceGridRolling(diceGrid, true);
 
         $.ajax({
             url: diceEndpointUrl,
@@ -72,21 +114,32 @@ function initRandomReleaseDice(): void {
             headers: { Accept: 'application/json' },
         })
             .done((responseData: unknown) => {
-                const choices = Array.isArray(responseData) ? responseData.filter(isRandomReleaseChoice) : [];
+                const parsed = parseRandomDiceResponse(responseData);
+                if (!parsed) {
+                    renderDiceChoicesOnFace(diceGrid, 1, [], fallbackCoverUrl);
+                    randomReleaseCard.addClass('d-none');
+                    diceContainer.removeClass('d-none');
+                    rollDiceButton.text('Roll again');
+                    noChoicesMessage.removeClass('d-none');
+                    return;
+                }
 
-                renderDiceChoices(diceGrid, choices, fallbackCoverUrl);
+                const { diceFace, choices } = parsed;
+                renderDiceChoicesOnFace(diceGrid, diceFace, choices, fallbackCoverUrl);
                 randomReleaseCard.addClass('d-none');
                 diceContainer.removeClass('d-none');
                 rollDiceButton.text('Roll again');
                 noChoicesMessage.toggleClass('d-none', choices.length > 0);
             })
             .fail(() => {
-                renderDiceChoices(diceGrid, [], fallbackCoverUrl);
+                renderDiceChoicesOnFace(diceGrid, 1, [], fallbackCoverUrl);
                 randomReleaseCard.addClass('d-none');
                 diceContainer.removeClass('d-none');
+                rollDiceButton.text('Roll again');
                 noChoicesMessage.removeClass('d-none');
             })
             .always(() => {
+                setDiceGridRolling(diceGrid, false);
                 rollDiceButton.prop('disabled', false);
             });
     });

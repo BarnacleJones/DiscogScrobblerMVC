@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DiscogScrobblerMVC.Models;
 using DiscogScrobblerMVC.Services;
+using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DiscogScrobblerMVC.Controllers;

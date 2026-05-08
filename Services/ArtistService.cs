@@ -2,6 +2,10 @@ using DiscogsApiClient;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Caching;
+using DiscogScrobblerMVC.Services.Discogs;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -34,8 +38,12 @@ public class ArtistService : IArtistService
         _logger = logger;
     }
 
-    public async Task<ArtistViewModel?> GetArtist(int id, CancellationToken cancellationToken = default)
+    public async Task<ArtistViewModel?> GetArtist(int id, string viewerApplicationUserId, CancellationToken cancellationToken = default)
     {
+        var discogsCoverSubfolderName =
+            await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
+                _db, viewerApplicationUserId, cancellationToken);
+
         var artist = await _db.Artists.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (artist is null)
@@ -113,20 +121,21 @@ public class ArtistService : IArtistService
                 x.Images!.CoverUrl))
             .ToListAsync(cancellationToken);
 
-        return ToViewModel(artist, profile, imageUrl, collectionReleases);
+        return ToViewModel(artist, profile, imageUrl, discogsCoverSubfolderName, collectionReleases);
     }
 
     private static ArtistViewModel ToViewModel(
         Artist artist,
         string? profile,
         string? imageUrl,
+        string? discogsCoverSubfolderName,
         IEnumerable<ReleaseCardQueryResult> collectionReleases) =>
         new()
         {
             Id = artist.Id,
             Name = artist.Name,
             Profile = profile,
-            ImageUrl = CoverImageUrlResolver.ResolveForGrid(
+            ImageUrl = CoverImageUrlResolver.ResolveArtistProfileImageForGrid(
                 artist.LocalThumbnailFilename,
                 artist.LocalImageFilename,
                 imageUrl),
@@ -135,7 +144,11 @@ public class ArtistService : IArtistService
                     x.ReleaseId,
                     x.Album,
                     x.Year,
-                    CoverImageUrlResolver.ResolveForGrid(x.LocalThumbnailFilename, x.LocalImageFilename, x.CoverUrl)))
+                    CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                        discogsCoverSubfolderName,
+                        x.LocalThumbnailFilename,
+                        x.LocalImageFilename,
+                        x.CoverUrl)))
                 .OrderByDescending(x => x.Year)
                 .ToList(),
         };

@@ -52,28 +52,40 @@
                     <ul class="navbar-nav ms-auto mt-2 mt-sm-0 gap-1 align-items-sm-center">
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
-                            <li class="w-100 d-sm-none pt-2">
-                                <span class="nav-submenu-label">Collection Browse</span>
-                            </li>
-                            <li class="nav-item d-sm-none ms-3">
-                                <a class="nav-link @(navController == "Collection" ? "active" : "")"
-                                   asp-controller="Collection" asp-action="Index">Collection</a>
-                            </li>
-                            <li class="nav-item d-sm-none ms-3">
-                                <a class="nav-link @(navController == "Tracks" ? "active" : "")"
-                                   asp-controller="Tracks" asp-action="Index">Tracks</a>
-                            </li>
-                            <li class="nav-item d-sm-none ms-3">
-                                <a class="nav-link @(navController == "Genres" ? "active" : "")"
-                                   asp-controller="Genres" asp-action="Index">Genres</a>
-                            </li>
-                            <li class="nav-item d-sm-none ms-3">
-                                <a class="nav-link @(navController == "Styles" ? "active" : "")"
-                                   asp-controller="Styles" asp-action="Index">Styles</a>
-                            </li>
-                            <li class="nav-item d-sm-none ms-3">
-                                <a class="nav-link @(navController == "Labels" ? "active" : "")"
-                                   asp-controller="Labels" asp-action="Index">Labels</a>
+                            <li class="nav-item w-100 d-sm-none pt-2">
+                                <button type="button"
+                                        class="nav-submenu-toggle w-100 text-start @(collectionBrowseDropdownActive ? "" : "collapsed")"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#collectionBrowseMobileSubnav"
+                                        aria-expanded="@(collectionBrowseDropdownActive ? "true" : "false")"
+                                        aria-controls="collectionBrowseMobileSubnav">
+                                    Collection Browse
+                                </button>
+                                <div class="collapse @(collectionBrowseDropdownActive ? "show" : "")"
+                                     id="collectionBrowseMobileSubnav">
+                                    <ul class="navbar-nav ms-3 mt-1 pb-1 gap-1 flex-column align-items-start">
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Collection" ? "active" : "")"
+                                               asp-controller="Collection" asp-action="Index">Collection</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Tracks" ? "active" : "")"
+                                               asp-controller="Tracks" asp-action="Index">Tracks</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Genres" ? "active" : "")"
+                                               asp-controller="Genres" asp-action="Index">Genres</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Styles" ? "active" : "")"
+                                               asp-controller="Styles" asp-action="Index">Styles</a>
+                                        </li>
+                                        <li class="nav-item w-100">
+                                            <a class="nav-link @(navController == "Labels" ? "active" : "")"
+                                               asp-controller="Labels" asp-action="Index">Labels</a>
+                                        </li>
+                                    </ul>
+                                </div>
                             </li>
                             <li class="nav-item dropdown d-none d-sm-block">
                                 <a class="nav-link dropdown-toggle @(collectionBrowseDropdownActive ? "active" : "")"
@@ -113,8 +125,11 @@
                                    asp-controller="Stats" asp-action="Index">Stats</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(navController == "Settings" ? "active" : "")"
-                                   asp-controller="Settings" asp-action="Index">Settings</a>
+                                <a class="nav-link position-relative pe-3 @(navController == "Settings" ? "active" : "")"
+                                   asp-controller="Settings" asp-action="Index">
+                                    Settings
+                                    @await Component.InvokeAsync("PendingRegistrationBadge")
+                                </a>
                             </li>
                         }
                         <partial name="_LoginPartial" />

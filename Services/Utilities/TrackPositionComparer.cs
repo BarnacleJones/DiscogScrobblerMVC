@@ -1,4 +1,4 @@
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Utilities;
 
 /// <summary>
 /// Orders Discogs-style track positions numerically inside digit runs (<c>2</c> before <c>10</c>, <c>A2</c> before <c>A10</c>).

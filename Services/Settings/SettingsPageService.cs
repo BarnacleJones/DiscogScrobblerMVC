@@ -1,11 +1,14 @@
+using DiscogScrobblerMVC;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
+using DiscogScrobblerMVC.Services.Interfaces;
+using DiscogScrobblerMVC.Services.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Settings;
 
 public class SettingsPageService : ISettingsPageService
 {
@@ -20,6 +23,7 @@ public class SettingsPageService : ISettingsPageService
     private readonly IDiscogsMetadataRefreshQueue _metadataRefreshQueue;
     private readonly ILastFmOAuthService _lastFmOAuth;
     private readonly IDistributedCache _cache;
+    private readonly IAccountApprovalService _accountApproval;
     private readonly ILogger<SettingsPageService> _logger;
 
     public SettingsPageService(
@@ -29,6 +33,7 @@ public class SettingsPageService : ISettingsPageService
         IDiscogsMetadataRefreshQueue metadataRefreshQueue,
         ILastFmOAuthService lastFmOAuth,
         IDistributedCache cache,
+        IAccountApprovalService accountApproval,
         ILogger<SettingsPageService> logger)
     {
         _userManager = userManager;
@@ -37,6 +42,7 @@ public class SettingsPageService : ISettingsPageService
         _metadataRefreshQueue = metadataRefreshQueue;
         _lastFmOAuth = lastFmOAuth;
         _cache = cache;
+        _accountApproval = accountApproval;
         _logger = logger;
     }
 
@@ -56,6 +62,10 @@ public class SettingsPageService : ISettingsPageService
         viewModel.HasPendingLastFmToken =
             !string.IsNullOrEmpty(await _cache.GetStringAsync(PendingLastFmCacheKey(user.Id), cancellationToken));
 
+        viewModel.HasDiscogsPersonalAccessToken = !string.IsNullOrEmpty(user.DiscogsPersonalAccessToken);
+
+        var discogsCoverSubfolderName = DiscogsCoverSubfolder.TryGetNameFromDiscogsUsername(user.DiscogsUsername);
+
         var coverCandidates = await _db.Releases
             .AsNoTracking()
             .Where(x => x.UserAssociations.Any(y => y.UserId == user.Id))
@@ -72,7 +82,8 @@ public class SettingsPageService : ISettingsPageService
         viewModel.LastFmCoverCandidates = coverCandidates
             .Select(x => x == null
                 ? null
-                : CoverImageUrlResolver.ResolveForGrid(
+                : CoverImageUrlResolver.ResolveReleaseCoverForGrid(
+                    discogsCoverSubfolderName,
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl))
@@ -82,15 +93,26 @@ public class SettingsPageService : ISettingsPageService
             .Take(MaxLastFmCoverCandidates)
             .ToList();
 
+        viewModel.IsAdmin = await _userManager.IsInRoleAsync(user, AppRoles.Admin);
+        if (viewModel.IsAdmin)
+            viewModel.PendingRegistrations = await _accountApproval.GetPendingRegistrationsAsync(cancellationToken);
+
         return viewModel;
     }
 
-    public async Task<SettingsSaveResult> SaveDiscogsUsernameAsync(
+    public async Task<SettingsSaveResult> SaveDiscogsSettingsAsync(
         ApplicationUser user,
         string? discogsUsername,
+        string? personalAccessTokenSubmission,
+        bool clearPersonalAccessToken,
         CancellationToken cancellationToken)
     {
         user.DiscogsUsername = string.IsNullOrWhiteSpace(discogsUsername) ? null : discogsUsername.Trim();
+
+        if (clearPersonalAccessToken)
+            user.DiscogsPersonalAccessToken = null;
+        else if (!string.IsNullOrWhiteSpace(personalAccessTokenSubmission))
+            user.DiscogsPersonalAccessToken = personalAccessTokenSubmission.Trim();
 
         var result = await _userManager.UpdateAsync(user);
         if (result.Succeeded)
@@ -189,7 +211,7 @@ public class SettingsPageService : ISettingsPageService
 
         var enqueued = _syncQueue.EnqueueUserFullSync(user.Id);
         return enqueued
-            ? "Sync started in the background."
+            ? "Sync started in the background. Without a personal access token, Discogs only exposes public collection data (typically the All folder)."
             : "Could not start sync — try again.";
     }
 

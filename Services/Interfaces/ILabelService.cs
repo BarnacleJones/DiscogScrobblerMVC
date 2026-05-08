@@ -1,6 +1,6 @@
 using DiscogScrobblerMVC.Models;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Interfaces;
 
 public interface ILabelService
 {

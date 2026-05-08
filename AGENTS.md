@@ -45,6 +45,11 @@
 - `Models/` is grouped by feature (`Collection`, `Catalog`, `Stats`, `Tracks`, `Home`, `Settings`, `Shared`) while keeping the `DiscogScrobblerMVC.Models` namespace.
 - Prefer `ViewModel` names for MVC/data-to-view shapes. Avoid new `Dto` names unless a true external transport contract appears.
 
+## Cover art (`App:ImageBasePath`)
+- Configured root (e.g. **`images`** beside content root, **`/app/images`** in Docker) holds every cached image. Do not drop release files at the root — use the layout below.
+- **Per signed-in Discogs user:** release thumbnails and full covers live under **`{ImageBasePath}/{sanitized Discogs username}/`**. Sanitization lives in **`CoverStoragePathResolver.TryGetDiscogsCoverSubfolderName`**; **`SharedArtistProfileSubfolder`** (`artists`) and **`SharedLabelProfileSubfolder`** (`labels`) are rejected as usernames (case-insensitive) so they never collide with shared catalog folders.
+- **Shared catalog (not per-app-user):** **`{ImageBasePath}/artists/`** and **`{ImageBasePath}/labels/`** — artist/label profile JPGs only. Constants on **`CoverStoragePathResolver`** (`SharedArtistProfileSubfolder`, `SharedLabelProfileSubfolder`); downloads in **`DiscogsService`**; URLs in **`CoverImageUrlResolver.ResolveArtistProfileImageForGrid`** / **`ResolveLabelProfileImageForGrid`**; **`DiscogsCoverSubfolder`** resolves the per-user subfolder name from the database for release cover URLs.
+
 ## Code Quality
 - Remove dead, redundant, or unused code.
 - Keep interfaces in their own files.

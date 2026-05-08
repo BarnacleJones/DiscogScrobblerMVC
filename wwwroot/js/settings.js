@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   // Scripts/settings.ts
-  var COVERS_PER_ROLL = 3;
+  var COVERS_PER_ROLL = 6;
   function pickRandomCovers(allCovers, count) {
     const remaining = [...allCovers];
     const picks = [];

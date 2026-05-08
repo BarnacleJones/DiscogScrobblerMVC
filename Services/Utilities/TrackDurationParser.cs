@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace DiscogScrobblerMVC.Services;
+namespace DiscogScrobblerMVC.Services.Utilities;
 
 /// <summary>
 /// Parses Discogs-style track duration strings ("MM:SS" or "HH:MM:SS") into seconds.

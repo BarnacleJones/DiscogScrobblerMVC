@@ -49,7 +49,9 @@ namespace DiscogScrobblerMVC.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "TEXT", nullable: false),
+                    AccountApproved = table.Column<bool>(type: "INTEGER", nullable: false),
                     DiscogsUsername = table.Column<string>(type: "TEXT", nullable: true),
+                    DiscogsPersonalAccessToken = table.Column<string>(type: "TEXT", nullable: true),
                     DiscogsCollectionValueMin = table.Column<string>(type: "TEXT", nullable: true),
                     DiscogsCollectionValueMedian = table.Column<string>(type: "TEXT", nullable: true),
                     DiscogsCollectionValueMax = table.Column<string>(type: "TEXT", nullable: true),

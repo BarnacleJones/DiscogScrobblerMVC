@@ -8,7 +8,19 @@ public class SettingsViewModel
     [MaxLength(100)]
     public string? DiscogsUsername { get; set; }
 
-    /// <summary>Displayed only — wired from Identity in the controller GET.</summary>
+    /// <summary>Optional on POST: leave blank to keep existing token.</summary>
+    [DataType(DataType.Password)]
+    [Display(Name = "Discogs personal access token")]
+    [MaxLength(500)]
+    public string? DiscogsPersonalAccessToken { get; set; }
+
+    [Display(Name = "Remove saved Discogs token")]
+    public bool ClearDiscogsPersonalAccessToken { get; set; }
+
+    /// <summary>Filled by GET only.</summary>
+    public bool HasDiscogsPersonalAccessToken { get; set; }
+
+    /// <summary>Displayed only — filled when the Settings view model is built.</summary>
     [Display(Name = "Last.fm account")]
     public string? LastFmUsername { get; set; }
 
@@ -27,5 +39,11 @@ public class SettingsViewModel
     /// Candidate release cover URLs used for the "random covers" preview in Settings.
     /// </summary>
     public List<string> LastFmCoverCandidates { get; set; } = [];
+
+    /// <summary>True when the signed-in user may approve registrations.</summary>
+    public bool IsAdmin { get; set; }
+
+    /// <summary>Pending accounts (only populated for admins).</summary>
+    public IReadOnlyList<PendingRegistrationViewModel> PendingRegistrations { get; set; } = [];
 }
 
