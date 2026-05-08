@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "node Scripts/vendor-copy.mjs",
-    "build": "esbuild Scripts/home.ts Scripts/release.ts Scripts/collection.ts Scripts/tracks.ts Scripts/stats.ts Scripts/settings.ts --bundle --outdir=wwwroot/js --platform=browser",
-    "watch": "esbuild Scripts/home.ts Scripts/release.ts Scripts/collection.ts Scripts/tracks.ts Scripts/stats.ts Scripts/settings.ts --bundle --outdir=wwwroot/js --platform=browser --watch"
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch"
   },
   "repository": {
     "type": "git",
