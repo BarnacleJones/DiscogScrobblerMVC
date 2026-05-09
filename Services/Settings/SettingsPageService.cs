@@ -177,17 +177,22 @@ public class SettingsPageService : ISettingsPageService
         if (!ok || string.IsNullOrWhiteSpace(sessionKey))
             return $"Could not verify Last.fm: {exchangeError}";
 
-        user.LastFmSessionKey = sessionKey;
-        user.LastFmUsername = lastFmUsername;
+        var freshUser = await _userManager.FindByIdAsync(user.Id);
+        if (freshUser is null)
+        {
+            _logger.LogError("CompleteLastFmCallbackAsync: FindByIdAsync returned null for user {UserId}", user.Id);
+            return "Your account could not be loaded. Try signing out and back in, then Finish linking Last.fm.";
+        }
 
-        var saved = await _userManager.UpdateAsync(user);
+        freshUser.LastFmSessionKey = sessionKey;
+        freshUser.LastFmUsername = lastFmUsername;
+
+        var saved = await _userManager.UpdateAsync(freshUser);
         if (!saved.Succeeded)
         {
             var details = string.Join("; ", saved.Errors.Select(x => $"{x.Code}: {x.Description}"));
             _logger.LogError("Persisting Last.fm session key failed after OAuth for user {UserId}: {Details}", user.Id, details);
 
-            user.LastFmSessionKey = null;
-            user.LastFmUsername = null;
             return $"Last.fm replied OK but this app could not save your session: {details}";
         }
 
@@ -200,12 +205,19 @@ public class SettingsPageService : ISettingsPageService
 
     public async Task<string> DisconnectLastFmAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
-        user.LastFmSessionKey = null;
-        user.LastFmUsername = null;
+        var freshUser = await _userManager.FindByIdAsync(user.Id);
+        if (freshUser is null)
+        {
+            _logger.LogError("DisconnectLastFmAsync: FindByIdAsync returned null for user {UserId}", user.Id);
+            return "Your account could not be loaded. Try signing out and back in.";
+        }
+
+        freshUser.LastFmSessionKey = null;
+        freshUser.LastFmUsername = null;
 
         await _cache.RemoveAsync(PendingLastFmCacheKey(user.Id), cancellationToken);
 
-        var saved = await _userManager.UpdateAsync(user);
+        var saved = await _userManager.UpdateAsync(freshUser);
         if (saved.Succeeded)
             return "Last.fm disconnected from this profile.";
 
