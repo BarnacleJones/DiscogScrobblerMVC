@@ -63,6 +63,7 @@
             <div class="card-body pt-2 d-flex flex-column">
                 <form asp-action="Index" method="post" class="mb-3">
                     @Html.AntiForgeryToken()
+                    <div asp-validation-summary="All" class="text-danger small mb-2" role="alert"></div>
                     <div class="mb-2">
                         <label asp-for="DiscogsUsername" class="form-label"></label>
                         @* new password as browser keeps trying to use my username *@

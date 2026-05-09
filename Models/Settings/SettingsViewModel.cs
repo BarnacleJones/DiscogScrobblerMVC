@@ -11,7 +11,7 @@ public class SettingsViewModel
     /// <summary>Optional on POST: leave blank to keep existing token.</summary>
     [DataType(DataType.Password)]
     [Display(Name = "Discogs personal access token")]
-    [MaxLength(500)]
+    [MaxLength(4000)]
     public string? DiscogsPersonalAccessToken { get; set; }
 
     [Display(Name = "Remove saved Discogs token")]

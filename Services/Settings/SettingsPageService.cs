@@ -107,14 +107,25 @@ public class SettingsPageService : ISettingsPageService
         bool clearPersonalAccessToken,
         CancellationToken cancellationToken)
     {
-        user.DiscogsUsername = string.IsNullOrWhiteSpace(discogsUsername) ? null : discogsUsername.Trim();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Always load a fresh tracked entity — avoids failed updates when the principal snapshot is stale
+        // (ConcurrencyStamp / custom columns) or ChangeTracker state is unexpected on scoped DbContext.
+        var freshUser = await _userManager.FindByIdAsync(user.Id);
+        if (freshUser is null)
+        {
+            _logger.LogError("SaveDiscogsSettingsAsync: FindByIdAsync returned null for user {UserId}", user.Id);
+            return new SettingsSaveResult(false, string.Empty, ["Your account could not be loaded. Try signing out and back in."]);
+        }
+
+        freshUser.DiscogsUsername = string.IsNullOrWhiteSpace(discogsUsername) ? null : discogsUsername.Trim();
 
         if (clearPersonalAccessToken)
-            user.DiscogsPersonalAccessToken = null;
+            freshUser.DiscogsPersonalAccessToken = null;
         else if (!string.IsNullOrWhiteSpace(personalAccessTokenSubmission))
-            user.DiscogsPersonalAccessToken = personalAccessTokenSubmission.Trim();
+            freshUser.DiscogsPersonalAccessToken = personalAccessTokenSubmission.Trim();
 
-        var result = await _userManager.UpdateAsync(user);
+        var result = await _userManager.UpdateAsync(freshUser);
         if (result.Succeeded)
             return new SettingsSaveResult(true, "Settings saved.", []);
 
