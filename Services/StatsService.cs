@@ -99,7 +99,7 @@ public class StatsService : IStatsService
         viewModel.LetterDistribution = FoldLetterBuckets(rawLetterBuckets.Select(x => (x.Letter, x.Count)));
 
         // (4) Top styles / top genres — grouping by Name is safe under the existing
-        // NormalizedName upsert invariant (see DiscogsService ~line 700). ThenBy(Name)
+        // NormalizedName upsert invariant (see DiscogsService.ReplaceReleaseGenresAndStylesAsync). ThenBy(Name)
         // gives stable ordering on ties.
         var topStylesRaw = await _db.ReleaseStyles.AsNoTracking()
             .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))

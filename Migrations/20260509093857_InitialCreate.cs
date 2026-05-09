@@ -19,6 +19,7 @@ namespace DiscogScrobblerMVC.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     DiscogsArtistId = table.Column<int>(type: "INTEGER", nullable: true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
+                    SchemaVersion = table.Column<int>(type: "INTEGER", nullable: false),
                     DiscogsProfile = table.Column<string>(type: "TEXT", maxLength: 65535, nullable: true),
                     DiscogsImageUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
                     LocalImageFilename = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
@@ -100,6 +101,7 @@ namespace DiscogScrobblerMVC.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     DiscogsLabelId = table.Column<int>(type: "INTEGER", nullable: true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
+                    SchemaVersion = table.Column<int>(type: "INTEGER", nullable: false),
                     DiscogsProfile = table.Column<string>(type: "TEXT", maxLength: 65535, nullable: true),
                     DiscogsImageUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
                     LocalImageFilename = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
@@ -120,7 +122,12 @@ namespace DiscogScrobblerMVC.Migrations
                     DiscogsReleaseId = table.Column<int>(type: "INTEGER", nullable: false),
                     DiscogsMasterId = table.Column<int>(type: "INTEGER", nullable: true),
                     Album = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
-                    Year = table.Column<int>(type: "INTEGER", nullable: true)
+                    Year = table.Column<int>(type: "INTEGER", nullable: true),
+                    SchemaVersion = table.Column<int>(type: "INTEGER", nullable: false),
+                    CommunityHaveCount = table.Column<int>(type: "INTEGER", nullable: true),
+                    CommunityWantCount = table.Column<int>(type: "INTEGER", nullable: true),
+                    Format = table.Column<string>(type: "TEXT", nullable: true),
+                    Notes = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
