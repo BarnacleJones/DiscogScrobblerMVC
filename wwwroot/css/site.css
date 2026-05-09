@@ -486,14 +486,6 @@ body {
   display: block;
   border-radius: 6px;
 }
-#collectionTable .collection-cover-placeholder {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto;
-  border-radius: 6px;
-  background: var(--bg3);
-  border: 1px solid var(--line);
-}
 
 /* ─── DataTables (inside .theme-data-grid) ──────────── */
 .theme-data-grid .dataTables_length label,
@@ -865,18 +857,6 @@ details[open] .tracklist-toggle::before { transform: rotate(90deg); }
   object-fit: cover;
   display: block;
 }
-.release-mini-cover-placeholder {
-  width: 100%;
-  aspect-ratio: 1/1;
-  background: var(--bg3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.release-mini-cover-placeholder-text {
-  font-size: 10px;
-  color: var(--txt3);
-}
 .release-mini-card-info {
   padding: 6px 8px;
 }
@@ -1127,11 +1107,6 @@ details[open] .tracklist-toggle::before { transform: rotate(90deg); }
   #collectionTable .collection-cover-cell {
     width: 60px;
     max-width: 60px;
-  }
-
-  #collectionTable .collection-cover-placeholder {
-    width: 48px;
-    height: 48px;
   }
 
   .info-row {

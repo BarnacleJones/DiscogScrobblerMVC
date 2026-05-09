@@ -66,17 +66,23 @@
     for (let index = 0; index < count; index++) {
       const choice = choices[index];
       const gridArea = gridAreas[index];
+      const coverSrc = (choice.coverUrl ?? "").trim() || fallbackCoverUrl;
+      const coverImg = $("<img>").attr({
+        src: coverSrc,
+        alt: "",
+        loading: "lazy",
+        decoding: "async"
+      }).addClass("random-dice-cover");
+      if (fallbackCoverUrl) {
+        coverImg.on("error", function() {
+          this.onerror = null;
+          this.src = fallbackCoverUrl;
+        });
+      }
       $("<a>").attr({
         href: `/release/${choice.releaseId}`,
         "aria-label": `Open ${choice.album}`
-      }).addClass("random-dice-choice").css("grid-area", gridArea).append(
-        $("<img>").attr({
-          src: (choice.coverUrl ?? "").trim() || fallbackCoverUrl,
-          alt: choice.album,
-          loading: "lazy",
-          decoding: "async"
-        }).addClass("random-dice-cover")
-      ).appendTo(diceGrid);
+      }).addClass("random-dice-choice").css("grid-area", gridArea).append(coverImg).appendTo(diceGrid);
     }
   }
   function initRandomReleaseDice() {

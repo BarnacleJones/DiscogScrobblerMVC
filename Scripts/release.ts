@@ -63,6 +63,24 @@ function renderDiceChoicesOnFace(
         const choice = choices[index];
         const gridArea = gridAreas[index];
 
+        const coverSrc = (choice.coverUrl ?? '').trim() || fallbackCoverUrl;
+
+        const coverImg = $('<img>')
+            .attr({
+                src: coverSrc,
+                alt: '',
+                loading: 'lazy',
+                decoding: 'async',
+            })
+            .addClass('random-dice-cover');
+
+        if (fallbackCoverUrl) {
+            coverImg.on('error', function (this: HTMLImageElement) {
+                this.onerror = null;
+                this.src = fallbackCoverUrl;
+            });
+        }
+
         $('<a>')
             .attr({
                 href: `/release/${choice.releaseId}`,
@@ -70,16 +88,7 @@ function renderDiceChoicesOnFace(
             })
             .addClass('random-dice-choice')
             .css('grid-area', gridArea)
-            .append(
-                $('<img>')
-                    .attr({
-                        src: (choice.coverUrl ?? '').trim() || fallbackCoverUrl,
-                        alt: choice.album,
-                        loading: 'lazy',
-                        decoding: 'async',
-                    })
-                    .addClass('random-dice-cover')
-            )
+            .append(coverImg)
             .appendTo(diceGrid);
     }
 }

@@ -1,4 +1,8 @@
 @model ReleaseViewModel
+@{
+    var coverFallback = "/images/placeholder-cover.svg";
+    var coverSrc = string.IsNullOrWhiteSpace(Model.CoverUrl) ? coverFallback : Model.CoverUrl;
+}
 
 <div class="row justify-content-center">
     <div class="col-12 col-sm-10 col-md-8 col-lg-6">
@@ -22,12 +26,10 @@
                 }
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(Model.CoverUrl))
-            {
-                <img class="album-cover"
-                     src="@Model.CoverUrl"
-                     alt="@Model.Album" />
-            }
+            <img class="album-cover"
+                 src="@coverSrc"
+                 alt=""
+                 onerror="this.onerror=null;this.src='@coverFallback'" />
 
             <div class="card-body pt-3">
 
@@ -130,6 +132,24 @@
                             }
                         </span>
                     </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.Format))
+                {
+                    <div class="info-row">
+                        <span class="info-label">Format</span>
+                        <span class="info-value profile-text">@Model.Format</span>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <details class="tracklist">
+                        <summary class="tracklist-toggle">
+                            Notes
+                        </summary>
+                        <p class="profile-text mb-0 mt-2">@Model.Notes</p>
+                    </details>
                 }
 
                 @if (Model.Tracklist.Count != 0)

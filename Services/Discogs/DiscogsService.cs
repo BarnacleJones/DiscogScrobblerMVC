@@ -634,16 +634,16 @@ public class DiscogsService : IDiscogsService
     public async Task SyncUserFullInBackground(string applicationUserId, CancellationToken ct)
     {
         await SyncUserInBackground(applicationUserId, ct);
-        await SyncReleaseDetails(ct);
-        await DownloadMissingImages(ct);
+        await SyncReleaseDetails(ct, applicationUserId);
+        await DownloadMissingImages(ct, applicationUserId);
     }
 
-    public async Task DownloadMissingImages(CancellationToken ct)
+    public async Task DownloadMissingImages(CancellationToken ct, string? restrictToApplicationUserId = null)
     {
         await _discogsExclusiveGate.WaitAsync(ct);
         try
         {
-            await DownloadMissingImagesCore(ct);
+            await DownloadMissingImagesCore(ct, restrictToApplicationUserId);
         }
         finally
         {
@@ -651,7 +651,7 @@ public class DiscogsService : IDiscogsService
         }
     }
 
-    private async Task DownloadMissingImagesCore(CancellationToken ct)
+    private async Task DownloadMissingImagesCore(CancellationToken ct, string? restrictToApplicationUserId = null)
     {
         string baseImageDir;
         try
@@ -672,6 +672,7 @@ public class DiscogsService : IDiscogsService
             from assoc in releaseCover.Release.UserAssociations
             join x in _db.Users on assoc.UserId equals x.Id
             where x.DiscogsUsername != null && !string.IsNullOrWhiteSpace(x.DiscogsUsername)
+                  && (restrictToApplicationUserId == null || assoc.UserId == restrictToApplicationUserId)
             select new
             {
                 Cover = releaseCover,
@@ -684,9 +685,19 @@ public class DiscogsService : IDiscogsService
             .Select(x => x.First())
             .ToList();
 
-        _logger.LogInformation(
-            "Checking {Count} release cover download targets (per Discogs collection owner).",
-            distinctDownloadTargets.Count);
+        if (restrictToApplicationUserId is null)
+        {
+            _logger.LogInformation(
+                "Checking {Count} release cover download targets (per Discogs collection owner).",
+                distinctDownloadTargets.Count);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Checking {Count} release cover download targets for user {UserId}.",
+                distinctDownloadTargets.Count,
+                restrictToApplicationUserId);
+        }
 
         var preparedCount = 0;
         var failedCount = 0;
@@ -774,23 +785,39 @@ public class DiscogsService : IDiscogsService
             }
         }
 
-        await DownloadMissingArtistImagesCore(baseImageDir, ct);
-        await DownloadMissingLabelImagesCore(baseImageDir, ct);
+        await DownloadMissingArtistImagesCore(baseImageDir, ct, restrictToApplicationUserId);
+        await DownloadMissingLabelImagesCore(baseImageDir, ct, restrictToApplicationUserId);
 
-        _logger.LogInformation(
-            "Release cover asset checks complete for all Discogs owners. Prepared {PreparedCount}; failed {FailedCount}.",
-            preparedCount,
-            failedCount);
+        if (restrictToApplicationUserId is null)
+        {
+            _logger.LogInformation(
+                "Release cover asset checks complete for all Discogs owners. Prepared {PreparedCount}; failed {FailedCount}.",
+                preparedCount,
+                failedCount);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Release cover asset checks complete for user {UserId}. Prepared {PreparedCount}; failed {FailedCount}.",
+                restrictToApplicationUserId,
+                preparedCount,
+                failedCount);
+        }
     }
 
-    private async Task DownloadMissingArtistImagesCore(string catalogImagesRootDirectory, CancellationToken ct)
+    private async Task DownloadMissingArtistImagesCore(
+        string catalogImagesRootDirectory,
+        CancellationToken ct,
+        string? restrictToApplicationUserId = null)
     {
         var artistProfilesDirectory =
             Path.Combine(catalogImagesRootDirectory, CoverStoragePathResolver.SharedArtistProfileSubfolder);
         Directory.CreateDirectory(artistProfilesDirectory);
 
         var imageCandidates = await _db.Artists
-            .Where(x => x.DiscogsImageUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
+            .Where(x => (x.DiscogsImageUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
+                        && (restrictToApplicationUserId == null
+                            || x.Releases.Any(r => r.UserAssociations.Any(u => u.UserId == restrictToApplicationUserId))))
             .Select(x => new
             {
                 Artist = x,
@@ -886,14 +913,19 @@ public class DiscogsService : IDiscogsService
             failedCount);
     }
 
-    private async Task DownloadMissingLabelImagesCore(string catalogImagesRootDirectory, CancellationToken ct)
+    private async Task DownloadMissingLabelImagesCore(
+        string catalogImagesRootDirectory,
+        CancellationToken ct,
+        string? restrictToApplicationUserId = null)
     {
         var labelProfilesDirectory =
             Path.Combine(catalogImagesRootDirectory, CoverStoragePathResolver.SharedLabelProfileSubfolder);
         Directory.CreateDirectory(labelProfilesDirectory);
 
         var imageCandidates = await _db.Labels
-            .Where(x => x.DiscogsImageUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
+            .Where(x => (x.DiscogsImageUrl != null || x.LocalImageFilename != null || x.LocalThumbnailFilename != null)
+                        && (restrictToApplicationUserId == null
+                            || x.Releases.Any(r => r.UserAssociations.Any(u => u.UserId == restrictToApplicationUserId))))
             .Select(x => new
             {
                 Label = x,
@@ -1024,12 +1056,12 @@ public class DiscogsService : IDiscogsService
         await image.SaveAsJpegAsync(outputPath, encoder, ct);
     }
 
-    public async Task SyncReleaseDetails(CancellationToken ct)
+    public async Task SyncReleaseDetails(CancellationToken ct, string? restrictToApplicationUserId = null)
     {
         await _discogsExclusiveGate.WaitAsync(ct);
         try
         {
-            await SyncReleaseDetailsCore(ct);
+            await SyncReleaseDetailsCore(ct, restrictToApplicationUserId);
         }
         finally
         {
@@ -1105,87 +1137,159 @@ public class DiscogsService : IDiscogsService
         }
     }
 
-    private readonly record struct ReleaseDetailsSyncRow(int Id, int DiscogsReleaseId, string Album);
+    private readonly record struct ReleaseDetailSyncCandidate(int Id, int DiscogsReleaseId, string Album);
 
-    private async Task SyncReleaseDetailsCore(CancellationToken ct)
+    private async Task SyncReleaseDetailsCore(CancellationToken ct, string? restrictToApplicationUserId = null)
     {
-        var releasesWithoutDetails = await _db.Releases
+        var releaseQuery = _db.Releases
             .AsNoTracking()
-            .Where(x => !x.Tracks.Any())
-            .Select(x => new ReleaseDetailsSyncRow(x.Id, x.DiscogsReleaseId, x.Album))
+            .Where(x => x.SchemaVersion < Release.ReleaseSchemaVersion);
+
+        if (restrictToApplicationUserId is not null)
+            releaseQuery = releaseQuery.Where(x =>
+                x.UserAssociations.Any(u => u.UserId == restrictToApplicationUserId));
+
+        var releaseDetailSyncCandidates = await releaseQuery
+            .Select(x => new ReleaseDetailSyncCandidate(x.Id, x.DiscogsReleaseId, x.Album))
             .ToListAsync(ct);
 
-        _logger.LogInformation(
-            "Syncing Discogs details for {ReleaseCount} releases missing track details.",
-            releasesWithoutDetails.Count);
+        if (restrictToApplicationUserId is null)
+        {
+            _logger.LogInformation(
+                "Syncing Discogs details for {ReleaseCount} releases behind schema version {ExpectedVersion}.",
+                releaseDetailSyncCandidates.Count,
+                Release.ReleaseSchemaVersion);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Syncing Discogs details for {ReleaseCount} releases (user {UserId}) behind schema version {ExpectedVersion}.",
+                releaseDetailSyncCandidates.Count,
+                restrictToApplicationUserId,
+                Release.ReleaseSchemaVersion);
+        }
 
         var syncedCount = 0;
         var failedCount = 0;
 
-        foreach (var release in releasesWithoutDetails)
+        foreach (var releaseCandidate in releaseDetailSyncCandidates)
         {
             try
             {
-                if (await _db.Tracks.AnyAsync(x => x.ReleaseId == release.Id, ct))
+                var discogsRelease = await _discogsApiClient.GetRelease(releaseCandidate.DiscogsReleaseId, ct);
+
+                var formatSummaryForDb = DiscogsReleaseFormatFormatter.BuildFormatSummary(discogsRelease.Formats) ?? "";
+                var notesTextForDb = string.IsNullOrWhiteSpace(discogsRelease.Notes)
+                    ? ""
+                    : discogsRelease.Notes.Trim();
+                var communityHaveCount = discogsRelease.CommunityStatistics?.UsersOwningReleaseCount;
+                var communityWantCount = discogsRelease.CommunityStatistics?.UsersWantingReleaseCount;
+
+                var tracklistAlreadyImported =
+                    await _db.Tracks.AnyAsync(x => x.ReleaseId == releaseCandidate.Id, ct);
+
+                if (tracklistAlreadyImported)
                 {
+                    await _db.Releases.Where(x => x.Id == releaseCandidate.Id)
+                        .ExecuteUpdateAsync(
+                            s => s
+                                .SetProperty(x => x.CommunityHaveCount, communityHaveCount)
+                                .SetProperty(x => x.CommunityWantCount, communityWantCount)
+                                .SetProperty(x => x.Format, formatSummaryForDb)
+                                .SetProperty(x => x.Notes, notesTextForDb)
+                                .SetProperty(x => x.SchemaVersion, Release.ReleaseSchemaVersion),
+                            ct);
+
                     _logger.LogInformation(
-                        "Skipping details for {Album} ({DiscogsReleaseId}); tracks were already synced.",
-                        release.Album,
-                        release.DiscogsReleaseId);
-                    continue;
+                        "Synced {Album} ({DiscogsReleaseId})",
+                        releaseCandidate.Album,
+                        releaseCandidate.DiscogsReleaseId);
+                    syncedCount++;
                 }
-
-                var details = await _discogsApiClient.GetRelease(release.DiscogsReleaseId, ct);
-
-                await using var transaction = await _db.Database.BeginTransactionAsync(ct);
-
-                if (await _db.Tracks.AnyAsync(x => x.ReleaseId == release.Id, ct))
+                else
                 {
-                    _logger.LogInformation(
-                        "Skipping details for {Album} ({DiscogsReleaseId}); tracks were already synced.",
-                        release.Album,
-                        release.DiscogsReleaseId);
-                    await transaction.RollbackAsync(ct);
-                    continue;
-                }
+                    await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
-                await ReplaceReleaseGenresAndStylesAsync(release.Id, details.Genres, details.Styles, ct);
-
-                foreach (var t in details.Tracklist.Where(x => x.Type == "track"))
-                {
-                    var seconds = TrackDurationParser.TryParseSeconds(t.Duration);
-                    _db.Tracks.Add(new Track
+                    if (await _db.Tracks.AnyAsync(x => x.ReleaseId == releaseCandidate.Id, ct))
                     {
-                        ReleaseId = release.Id,
-                        Position = t.Position,
-                        Title = t.Title,
-                        Duration = t.Duration,
-                        DurationSeconds = seconds is > 0 ? seconds : null,
-                    });
+                        _logger.LogInformation(
+                            "Skipping track import for {Album} ({DiscogsReleaseId}); tracks appeared during fetch.",
+                            releaseCandidate.Album,
+                            releaseCandidate.DiscogsReleaseId);
+                        await _db.Releases.Where(x => x.Id == releaseCandidate.Id)
+                            .ExecuteUpdateAsync(
+                                s => s
+                                    .SetProperty(x => x.CommunityHaveCount, communityHaveCount)
+                                    .SetProperty(x => x.CommunityWantCount, communityWantCount)
+                                    .SetProperty(x => x.Format, formatSummaryForDb)
+                                    .SetProperty(x => x.Notes, notesTextForDb)
+                                    .SetProperty(x => x.SchemaVersion, Release.ReleaseSchemaVersion),
+                                ct);
+                        await transaction.CommitAsync(ct);
+                        syncedCount++;
+                        continue;
+                    }
+
+                    await ReplaceReleaseGenresAndStylesAsync(
+                        releaseCandidate.Id,
+                        discogsRelease.Genres,
+                        discogsRelease.Styles,
+                        ct);
+
+                    await _db.Releases.Where(x => x.Id == releaseCandidate.Id)
+                        .ExecuteUpdateAsync(
+                            s => s
+                                .SetProperty(x => x.CommunityHaveCount, communityHaveCount)
+                                .SetProperty(x => x.CommunityWantCount, communityWantCount)
+                                .SetProperty(x => x.Format, formatSummaryForDb)
+                                .SetProperty(x => x.Notes, notesTextForDb)
+                                .SetProperty(x => x.SchemaVersion, Release.ReleaseSchemaVersion),
+                            ct);
+
+                    foreach (var trackEntry in discogsRelease.Tracklist.Where(listItem => listItem.Type == "track"))
+                    {
+                        var durationSeconds = TrackDurationParser.TryParseSeconds(trackEntry.Duration);
+                        _db.Tracks.Add(new Track
+                        {
+                            ReleaseId = releaseCandidate.Id,
+                            Position = trackEntry.Position,
+                            Title = trackEntry.Title,
+                            Duration = trackEntry.Duration,
+                            DurationSeconds = durationSeconds is > 0 ? durationSeconds : null,
+                        });
+                    }
+
+                    await _db.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+
+                    _logger.LogInformation(
+                        "Synced details for {Album} ({DiscogsReleaseId})",
+                        releaseCandidate.Album,
+                        releaseCandidate.DiscogsReleaseId);
+                    syncedCount++;
                 }
-
-                await _db.SaveChangesAsync(ct);
-                await transaction.CommitAsync(ct);
-
-                _logger.LogInformation("Synced details for {Album} ({DiscogsReleaseId})", release.Album, release.DiscogsReleaseId);
-                syncedCount++;
             }
             catch (RateLimitExceededDiscogsException)
             {
-                _logger.LogWarning("Discogs rate limited while syncing {Album} ({DiscogsReleaseId}); backing off.", release.Album,
-                    release.DiscogsReleaseId);
+                _logger.LogWarning(
+                    "Discogs rate limited while syncing {Album} ({DiscogsReleaseId}); backing off.",
+                    releaseCandidate.Album,
+                    releaseCandidate.DiscogsReleaseId);
                 failedCount++;
                 await Task.Delay(RateLimitBackoff, ct);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to sync details for {Album} ({DiscogsReleaseId})", release.Album, release.DiscogsReleaseId);
+                _logger.LogWarning(
+                    ex,
+                    "Failed to sync details for {Album} ({DiscogsReleaseId})",
+                    releaseCandidate.Album,
+                    releaseCandidate.DiscogsReleaseId);
                 _db.ChangeTracker.Clear();
                 failedCount++;
             }
             finally
             {
-                // Be polite — failures used to skip the delay and hammer the API in a tight loop (e.g. after 429 responses).
                 await Task.Delay(ReleaseDetailsRequestDelay, ct);
             }
         }
@@ -1199,7 +1303,7 @@ public class DiscogsService : IDiscogsService
     public async Task RefreshAllArtistLabelDiscogsDetailsAsync(CancellationToken ct)
     {
         var artists = await _db.Artists.AsNoTracking()
-            .Where(x => x.DiscogsArtistId != null)
+            .Where(x => x.DiscogsArtistId != null && x.SchemaVersion < Artist.ArtistSchemaVersion)
             .Select(x => new ArtistMetadataRefreshRow(x.Id, x.DiscogsArtistId!.Value))
             .ToListAsync(ct);
 
@@ -1211,7 +1315,7 @@ public class DiscogsService : IDiscogsService
             await RefreshArtistDiscogsDetailsAsync(artist, ct);
 
         var labels = await _db.Labels.AsNoTracking()
-            .Where(x => x.DiscogsLabelId != null)
+            .Where(x => x.DiscogsLabelId != null && x.SchemaVersion < Label.LabelSchemaVersion)
             .Select(x => new LabelMetadataRefreshRow(x.Id, x.DiscogsLabelId!.Value))
             .ToListAsync(ct);
 
@@ -1248,6 +1352,7 @@ public class DiscogsService : IDiscogsService
                 if (string.IsNullOrWhiteSpace(artist.DiscogsImageUrl))
                     artist.DiscogsImageUrl = DiscogsApiImages.PrimaryOrFirstUri(details.Images);
 
+                artist.SchemaVersion = Artist.ArtistSchemaVersion;
                 artist.DiscogsDetailsFetchedAt = DateTimeOffset.UtcNow;
                 await _db.SaveChangesAsync(ct);
             }
@@ -1293,6 +1398,7 @@ public class DiscogsService : IDiscogsService
                 if (string.IsNullOrWhiteSpace(label.DiscogsImageUrl))
                     label.DiscogsImageUrl = DiscogsApiImages.PrimaryOrFirstUri(details.Images);
 
+                label.SchemaVersion = Label.LabelSchemaVersion;
                 label.DiscogsDetailsFetchedAt = DateTimeOffset.UtcNow;
                 await _db.SaveChangesAsync(ct);
             }

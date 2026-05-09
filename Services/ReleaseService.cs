@@ -1,5 +1,6 @@
 using DiscogsApiClient;
 using DiscogScrobblerMVC.Data;
+using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
 using DiscogScrobblerMVC.Services.Interfaces;
 using DiscogScrobblerMVC.Services.Utilities;
@@ -34,9 +35,12 @@ public class ReleaseService : IReleaseService
             .Select(x => new
             {
                 ReleaseId = x.DiscogsReleaseId,
+                x.SchemaVersion,
                 x.DiscogsMasterId,
                 x.Album,
                 x.Year,
+                x.CommunityHaveCount,
+                x.CommunityWantCount,
                 x.Images!.LocalImageFilename,
                 x.Images!.CoverUrl,
                 Artists = x.Artists
@@ -51,6 +55,8 @@ public class ReleaseService : IReleaseService
                 Styles = x.StyleLinks
                     .Select(y => new StyleLinkViewModel(y.StyleId, y.Style.Name))
                     .ToList(),
+                x.Format,
+                x.Notes,
                 Tracklist = x.Tracks
                     .Select(y => new TrackViewModel { Position = y.Position, Title = y.Title, Duration = y.Duration })
                     .ToList(),
@@ -60,17 +66,40 @@ public class ReleaseService : IReleaseService
         if (release is null)
             return null;
 
-        var usersOwningRelease = 0;
-        var usersWantingRelease = 0;
-        try
+        int usersOwningRelease;
+        int usersWantingRelease;
+        if (release.SchemaVersion >= Release.ReleaseSchemaVersion)
         {
-            var community = await _discogsApiClient.GetRelease(discogsReleaseId, cancellationToken);
-            usersOwningRelease = community.CommunityStatistics?.UsersOwningReleaseCount ?? 0;
-            usersWantingRelease = community.CommunityStatistics?.UsersWantingReleaseCount ?? 0;
+            usersOwningRelease = release.CommunityHaveCount ?? 0;
+            usersWantingRelease = release.CommunityWantCount ?? 0;
         }
-        catch (Exception ex)
+        else if (release.CommunityHaveCount is not null && release.CommunityWantCount is not null)
         {
-            _logger.LogWarning(ex, "Failed to fetch community stats for release {Id}", discogsReleaseId);
+            usersOwningRelease = release.CommunityHaveCount.Value;
+            usersWantingRelease = release.CommunityWantCount.Value;
+        }
+        else
+        {
+            usersOwningRelease = 0;
+            usersWantingRelease = 0;
+            try
+            {
+                var community = await _discogsApiClient.GetRelease(discogsReleaseId, cancellationToken);
+                usersOwningRelease = community.CommunityStatistics?.UsersOwningReleaseCount ?? 0;
+                usersWantingRelease = community.CommunityStatistics?.UsersWantingReleaseCount ?? 0;
+
+                await _db.Releases
+                    .Where(x => x.DiscogsReleaseId == discogsReleaseId)
+                    .ExecuteUpdateAsync(
+                        s => s
+                            .SetProperty(x => x.CommunityHaveCount, usersOwningRelease)
+                            .SetProperty(x => x.CommunityWantCount, usersWantingRelease),
+                        cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch community stats for release {Id}", discogsReleaseId);
+            }
         }
 
         return new ReleaseViewModel
@@ -93,6 +122,8 @@ public class ReleaseService : IReleaseService
             Styles = release.Styles
                 .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList(),
+            Format = release.Format,
+            Notes = release.Notes,
             Tracklist = release.Tracklist
                 .OrderBy(x => x.Position, TrackPositionComparer.Instance)
                 .ToList(),
