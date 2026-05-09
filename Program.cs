@@ -25,6 +25,7 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 
 //Add logging
 Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new LogDisplayTimeEnricher(builder.Configuration["App:LogTimeZoneId"]))
     .ReadFrom.Configuration(builder.Configuration)
     .CreateLogger();
 
