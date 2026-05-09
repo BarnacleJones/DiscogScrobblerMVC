@@ -33,7 +33,7 @@ Override **`ConnectionStrings:DefaultConnection`** if you do not want the defaul
 dotnet run
 ```
 
-Register the first account (that user is **Admin**). To test pending users, register a second account: it stays **pending** until you approve it under **Settings**. Then open **Settings**, set **Discogs username** and **personal access token**, connect Last.fm if needed, and use sync controls (a daily background sync also runs for each user who has both username and token saved).
+Register the first account (that user is **Admin**). To test pending users, register a second account: it stays **pending** until you approve it under **Settings**. Then open **Settings**, set **Discogs username** (required for per-user sync paths) and optionally a **personal access token**, connect Last.fm if needed, and use sync controls. A **daily background collection sync** runs for every user who has a **Discogs username** saved; without a token that sync only succeeds if the Discogs **collection is public** (see **[README.md](README.md)**). Collection **value** refresh still requires a token.
 
 Useful commands from the same project directory:
 

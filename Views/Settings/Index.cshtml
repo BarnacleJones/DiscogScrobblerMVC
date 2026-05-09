@@ -74,7 +74,9 @@
                         <input asp-for="DiscogsPersonalAccessToken" class="form-control" autocomplete="new-password" />
                         <span asp-validation-for="DiscogsPersonalAccessToken" class="text-danger"></span>
                         <div class="form-text">
-                            From Discogs → Settings → Developers → <strong>Generate token</strong>. Optional: without it, sync still pulls whatever Discogs allows without owner authentication (public collections, usually the combined &quot;All&quot; folder only). With a token you get private collections, custom folders, and collection value. Stored as plain text in the database — see README.
+                            Discogs → Settings → Developers → <strong>Generate token</strong>. 
+                            <hr />
+                            The token is optional only if your Discogs <strong>collection</strong> is <strong>public</strong>. Without a token you won't get as much data. Stored as plain text in database — see README.
                             @if (Model.HasDiscogsPersonalAccessToken)
                             {
                                 <span class="d-block mt-1">A token is already saved.</span>

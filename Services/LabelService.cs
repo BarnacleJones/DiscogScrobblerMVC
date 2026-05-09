@@ -43,7 +43,7 @@ public class LabelService : ILabelService
         var discogsCoverSubfolderName =
             await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(_db, userId, cancellationToken);
 
-        var label = await _db.Labels.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+        var label = await _db.Labels.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (label is null)
             return null;
@@ -110,7 +110,7 @@ public class LabelService : ILabelService
         }
 
         var collectionReleases = await _db.Releases.AsNoTracking()
-            .Where(x => x.Labels.Any(y => y.Id == id) && x.UserAssociations.Any(u => u.UserId == userId))
+            .Where(x => x.Labels.Any(y => y.Id == id) && x.UserAssociations.Any(y => y.UserId == userId))
             .Select(x => new ReleaseCardQueryResult(
                 x.DiscogsReleaseId,
                 x.Album,

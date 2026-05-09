@@ -104,19 +104,19 @@ public class LastFmOAuthService : ILastFmOAuthService
             var status = lfm?.Attribute("status")?.Value;
             if (status != "ok")
             {
-                var errEl = lfm?.Elements().FirstOrDefault(e => e.Name.LocalName == "error");
+                var errEl = lfm?.Elements().FirstOrDefault(x => x.Name.LocalName == "error");
                 var msg = errEl?.Value ?? "Last.fm declined the authorization.";
                 return (false, null, null, msg);
             }
 
             // XML may use a default namespace; match on LocalName.
-            var sessionEl = lfm?.Elements().FirstOrDefault(e => e.Name.LocalName == "session")
-                ?? doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "session");
-            var sessionKey = sessionEl?.Elements().FirstOrDefault(e => e.Name.LocalName == "key")?.Value;
+            var sessionEl = lfm?.Elements().FirstOrDefault(x => x.Name.LocalName == "session")
+                ?? doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "session");
+            var sessionKey = sessionEl?.Elements().FirstOrDefault(x => x.Name.LocalName == "key")?.Value;
             if (string.IsNullOrWhiteSpace(sessionKey))
                 return (false, null, null, "Last.fm response missing session key.");
 
-            var username = sessionEl?.Elements().FirstOrDefault(e => e.Name.LocalName == "name")?.Value;
+            var username = sessionEl?.Elements().FirstOrDefault(x => x.Name.LocalName == "name")?.Value;
             return (true, sessionKey.Trim(), string.IsNullOrWhiteSpace(username) ? null : username.Trim(), null);
         }
         catch (Exception ex)

@@ -87,8 +87,8 @@ public class SettingsPageService : ISettingsPageService
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl))
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!)
+            .Where(y => !string.IsNullOrWhiteSpace(y))
+            .Select(y => y!)
             .Distinct()
             .Take(MaxLastFmCoverCandidates)
             .ToList();

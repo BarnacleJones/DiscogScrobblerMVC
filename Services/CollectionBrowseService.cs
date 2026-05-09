@@ -36,7 +36,7 @@ public class CollectionBrowseService : ICollectionBrowseService
 
     public async Task<CollectionBrowseViewModel?> GetByGenreIdAsync(string userId, int genreId, CancellationToken cancellationToken = default)
     {
-        var genre = await _db.Genres.AsNoTracking().FirstOrDefaultAsync(g => g.Id == genreId, cancellationToken);
+        var genre = await _db.Genres.AsNoTracking().FirstOrDefaultAsync(x => x.Id == genreId, cancellationToken);
         if (genre is null)
             return null;
 
@@ -59,7 +59,7 @@ public class CollectionBrowseService : ICollectionBrowseService
 
     public async Task<CollectionBrowseViewModel?> GetByStyleIdAsync(string userId, int styleId, CancellationToken cancellationToken = default)
     {
-        var style = await _db.Styles.AsNoTracking().FirstOrDefaultAsync(s => s.Id == styleId, cancellationToken);
+        var style = await _db.Styles.AsNoTracking().FirstOrDefaultAsync(x => x.Id == styleId, cancellationToken);
         if (style is null)
             return null;
 
@@ -83,12 +83,12 @@ public class CollectionBrowseService : ICollectionBrowseService
     public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetGenreReleaseCountsAsync(string userId,
         CancellationToken cancellationToken = default) =>
         await _db.Genres.AsNoTracking()
-            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(u => u.UserId == userId)))
+            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(z => z.UserId == userId)))
             .Select(x => new CollectionBrowseGridRowViewModel
             {
                 Id = x.Id,
                 Name = x.Name,
-                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(u => u.UserId == userId)),
+                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(z => z.UserId == userId)),
             })
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
@@ -96,12 +96,12 @@ public class CollectionBrowseService : ICollectionBrowseService
     public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetStyleReleaseCountsAsync(string userId,
         CancellationToken cancellationToken = default) =>
         await _db.Styles.AsNoTracking()
-            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(u => u.UserId == userId)))
+            .Where(x => x.ReleaseLinks.Any(y => y.Release.UserAssociations.Any(z => z.UserId == userId)))
             .Select(x => new CollectionBrowseGridRowViewModel
             {
                 Id = x.Id,
                 Name = x.Name,
-                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(u => u.UserId == userId)),
+                ReleaseCount = x.ReleaseLinks.Count(y => y.Release.UserAssociations.Any(z => z.UserId == userId)),
             })
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
@@ -109,12 +109,12 @@ public class CollectionBrowseService : ICollectionBrowseService
     public async Task<IReadOnlyList<CollectionBrowseGridRowViewModel>> GetLabelReleaseCountsAsync(string userId,
         CancellationToken cancellationToken = default) =>
         await _db.Labels.AsNoTracking()
-            .Where(x => x.Releases.Any(y => y.UserAssociations.Any(u => u.UserId == userId)))
+            .Where(x => x.Releases.Any(y => y.UserAssociations.Any(z => z.UserId == userId)))
             .Select(x => new CollectionBrowseGridRowViewModel
             {
                 Id = x.Id,
                 Name = x.Name,
-                ReleaseCount = x.Releases.Count(y => y.UserAssociations.Any(u => u.UserId == userId)),
+                ReleaseCount = x.Releases.Count(y => y.UserAssociations.Any(z => z.UserId == userId)),
             })
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
@@ -127,7 +127,7 @@ public class CollectionBrowseService : ICollectionBrowseService
     {
         var releases = releaseRows
             .Select(x => ToCard(discogsCoverSubfolderName, x))
-            .OrderBy(r => r.Album, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x.Album, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         return new CollectionBrowseViewModel

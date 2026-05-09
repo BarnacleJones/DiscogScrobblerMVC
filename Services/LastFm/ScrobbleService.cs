@@ -89,8 +89,8 @@ public class ScrobbleService : IScrobbleService
             return ScrobbleFailureReason.ReleaseNotFound;
 
         var tracks = release.Tracks
-            .OrderBy(t => t.Position, TrackPositionComparer.Instance)
-            .Where(x => !string.IsNullOrWhiteSpace(x.Title))
+            .OrderBy(x => x.Position, TrackPositionComparer.Instance)
+            .Where(y => !string.IsNullOrWhiteSpace(y.Title))
             .ToList();
 
         if (tracks.Count == 0)
@@ -109,7 +109,7 @@ public class ScrobbleService : IScrobbleService
         if (string.IsNullOrEmpty(rowArtist))
             rowArtist = "Unknown Artist";
 
-        var parsedDurations = tracks.ConvertAll(t => t.DurationSeconds ?? TrackDurationParser.TryParseSeconds(t.Duration));
+        var parsedDurations = tracks.ConvertAll(x => x.DurationSeconds ?? TrackDurationParser.TryParseSeconds(x.Duration));
         var playbackSeconds = ResolvePlaybackDurationsSeconds(parsedDurations);
         var trackStartTimesUtc = ComputeTrackStartTimesUtcAssumingJustFinishedAlbum(albumEndUtc, playbackSeconds);
 
@@ -150,9 +150,9 @@ public class ScrobbleService : IScrobbleService
     private static string FormatAlbumArtist(IEnumerable<string> artists)
     {
         var ordered = artists
-            .Select(name => name.Trim())
-            .Where(x => x.Length > 0)
-            .OrderBy(name => name)
+            .Select(x => x.Trim())
+            .Where(y => y.Length > 0)
+            .OrderBy(y => y)
             .ToList();
 
         if (ordered.Count == 0)
@@ -189,7 +189,7 @@ public class ScrobbleService : IScrobbleService
     /// </remarks>
     private static int[] ResolvePlaybackDurationsSeconds(IReadOnlyList<int?> parsedSecondsPerTrack)
     {
-        var knownDurations = parsedSecondsPerTrack.Where(x => x is > 0).Select(x => x!.Value).ToList();
+        var knownDurations = parsedSecondsPerTrack.Where(x => x is > 0).Select(y => y!.Value).ToList();
         var inferredDuration =
             knownDurations.Count > 0
                 ? Math.Max(MinimumInferredPlaybackSeconds, (int)Math.Round(knownDurations.Average()))
@@ -301,7 +301,7 @@ public class ScrobbleService : IScrobbleService
         if (status == "ok")
             return;
 
-        var errEl = lfm?.Elements().FirstOrDefault(e => e.Name.LocalName == "error");
+        var errEl = lfm?.Elements().FirstOrDefault(x => x.Name.LocalName == "error");
         var code = errEl?.Attribute("code")?.Value;
         var msg = errEl?.Value?.Trim();
         throw new InvalidOperationException(

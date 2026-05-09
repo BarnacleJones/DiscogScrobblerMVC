@@ -88,13 +88,13 @@ public class ReleaseService : IReleaseService
             Artists = release.Artists,
             Labels = release.Labels,
             Genres = release.Genres
-                .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList(),
             Styles = release.Styles
-                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList(),
             Tracklist = release.Tracklist
-                .OrderBy(t => t.Position, TrackPositionComparer.Instance)
+                .OrderBy(x => x.Position, TrackPositionComparer.Instance)
                 .ToList(),
         };
     }
@@ -112,7 +112,7 @@ public class ReleaseService : IReleaseService
 
         var randomOffset = Random.Shared.Next(releaseCount);
         var randomReleaseId = await userReleaseIds
-            .OrderBy(id => id)
+            .OrderBy(x => x)
             .Skip(randomOffset)
             .Select(x => (int?)x)
             .FirstOrDefaultAsync(cancellationToken);
@@ -147,7 +147,7 @@ public class ReleaseService : IReleaseService
         foreach (var offset in offsets)
         {
             var releaseId = await userReleaseIds
-                .OrderBy(id => id)
+                .OrderBy(x => x)
                 .Skip(offset)
                 .Select(x => (int?)x)
                 .FirstOrDefaultAsync(cancellationToken);

@@ -121,13 +121,13 @@ public class DiscogsService : IDiscogsService
     public void Authenticate(string token) =>
         _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(token);
 
-    private async Task<string?> TryGetPlainDiscogsTokenForUserAsync(
+    private async Task<string?> TryGetDiscogsPersonalAccessTokenForUserAsync(
         string applicationUserId,
         CancellationToken cancellationToken)
     {
         var token = await _db.Users.AsNoTracking()
-            .Where(u => u.Id == applicationUserId)
-            .Select(u => u.DiscogsPersonalAccessToken)
+            .Where(x => x.Id == applicationUserId)
+            .Select(x => x.DiscogsPersonalAccessToken)
             .FirstOrDefaultAsync(cancellationToken);
 
         return string.IsNullOrWhiteSpace(token) ? null : token.Trim();
@@ -145,7 +145,9 @@ public class DiscogsService : IDiscogsService
     }
 
     /// <summary>
-    /// Fetches each collection folder except id 0 (Discogs &quot;All&quot; duplicates other folders—see CollectionFolder docs in DiscogsApiClient).
+    /// With a PAT (personal access token): lists folders and syncs each except id 0 ('All' duplicates others).
+    /// Without a PAT: skips folder listing
+    /// (Discogs requires owner auth for that) and syncs folder 0 only when the collection is public; private collections need a PAT.
     /// </summary>
     private async Task SyncDiscogsUserCollectionFoldersAsync(
         string discogsUsername,
@@ -173,42 +175,57 @@ public class DiscogsService : IDiscogsService
         LabelSyncCache labelCache,
         CancellationToken cancellationToken)
     {
-        var plainToken = await TryGetPlainDiscogsTokenForUserAsync(applicationUserId, cancellationToken);
+        var plainToken = await TryGetDiscogsPersonalAccessTokenForUserAsync(applicationUserId, cancellationToken);
+        List<int> folderIds;
+
         if (plainToken is not null)
+        {
             _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(plainToken);
+            var foldersResponse = await _discogsApiClient.GetCollectionFolders(discogsUsername, cancellationToken);
+            folderIds = foldersResponse.Folders.Where(x => x.Id != 0).Select(x => x.Id).Distinct().OrderBy(x => x).ToList();
+            // If only the special "All" folder is present, sync it so empty collections do not regress.
+            if (folderIds.Count == 0 && foldersResponse.Folders.Any(x => x.Id == 0))
+                folderIds.Add(0);
+            else if (folderIds.Count == 0)
+            {
+                _logger.LogWarning("No Discogs collection folders returned for {Username}", discogsUsername);
+                return;
+            }
+        }
         else
         {
             DiscogsAuthenticationAnonymousHelper.ClearPersonalAccessStateForAnonymousRequests(
                 _discogsAuthenticationService,
                 _logger);
             _logger.LogInformation(
-                "Discogs collection sync for user {UserId} has no saved token — requesting only what Discogs allows without owner auth (typically folder 0 if the collection is public).",
+                "Discogs collection sync for user {UserId} has no saved token — syncing folder 0 (All) via public endpoints only. Works if Discogs collection visibility is public; folder listing and non-public collections require a personal access token.",
                 applicationUserId);
+            folderIds = new List<int> { 0 };
         }
 
-        var foldersResponse = await _discogsApiClient.GetCollectionFolders(discogsUsername, cancellationToken);
-        var folderIds = foldersResponse.Folders.Where(x => x.Id != 0).Select(x => x.Id).Distinct().OrderBy(x => x).ToList();
-        // If only the special "All" folder is present, sync it so empty collections do not regress.
-        if (folderIds.Count == 0 && foldersResponse.Folders.Any(f => f.Id == 0))
-            folderIds.Add(0);
-        else if (folderIds.Count == 0)
+        try
         {
-            _logger.LogWarning("No Discogs collection folders returned for {Username}", discogsUsername);
-            return;
-        }
+            for (var i = 0; i < folderIds.Count; i++)
+            {
+                await SyncDiscogsFolderReleasesPagedAsync(
+                    discogsUsername,
+                    applicationUserId,
+                    folderIds[i],
+                    artistCache,
+                    labelCache,
+                    cancellationToken);
 
-        for (var i = 0; i < folderIds.Count; i++)
+                if (i < folderIds.Count - 1)
+                    await Task.Delay(DiscogsRequestDelay, cancellationToken);
+            }
+        }
+        catch (UnauthenticatedDiscogsException ex) when (plainToken is null)
         {
-            await SyncDiscogsFolderReleasesPagedAsync(
-                discogsUsername,
+            _logger.LogWarning(
+                ex,
+                "Discogs collection for user {UserId} ({Username}) rejected unauthenticated access (folder 0). Discogs collection is not public for the API, or visibility is restricted — save a personal access token in Settings.",
                 applicationUserId,
-                folderIds[i],
-                artistCache,
-                labelCache,
-                cancellationToken);
-
-            if (i < folderIds.Count - 1)
-                await Task.Delay(DiscogsRequestDelay, cancellationToken);
+                discogsUsername);
         }
     }
 
@@ -253,13 +270,13 @@ public class DiscogsService : IDiscogsService
     /// </summary>
     private async Task<Release?> FindReleaseForCollectionUpsertAsync(int discogsReleaseId, CancellationToken cancellationToken)
     {
-        var local = _db.Releases.Local.FirstOrDefault(r => r.DiscogsReleaseId == discogsReleaseId);
+        var local = _db.Releases.Local.FirstOrDefault(x => x.DiscogsReleaseId == discogsReleaseId);
         if (local is not null)
             return local;
 
         return await _db.Releases
-            .Include(r => r.Images)
-            .FirstOrDefaultAsync(r => r.DiscogsReleaseId == discogsReleaseId, cancellationToken);
+            .Include(x => x.Images)
+            .FirstOrDefaultAsync(x => x.DiscogsReleaseId == discogsReleaseId, cancellationToken);
     }
 
     private async Task UpsertCollectionItem(
@@ -408,7 +425,7 @@ public class DiscogsService : IDiscogsService
 
             if (hasDiscogsId)
             {
-                artist = _db.Artists.Local.FirstOrDefault(a => a.DiscogsArtistId == apiId);
+                artist = _db.Artists.Local.FirstOrDefault(x => x.DiscogsArtistId == apiId);
                 if (artist is not null)
                 {
                     cache.Remember(artist);
@@ -465,7 +482,7 @@ public class DiscogsService : IDiscogsService
 
             if (hasDiscogsId)
             {
-                label = _db.Labels.Local.FirstOrDefault(l => l.DiscogsLabelId == apiId);
+                label = _db.Labels.Local.FirstOrDefault(x => x.DiscogsLabelId == apiId);
                 if (label is not null)
                 {
                     cache.Remember(label);
@@ -524,7 +541,7 @@ public class DiscogsService : IDiscogsService
             await _discogsExclusiveGate.WaitAsync(cancellationToken);
             try
             {
-                var plainToken = await TryGetPlainDiscogsTokenForUserAsync(applicationUserId, cancellationToken);
+                var plainToken = await TryGetDiscogsPersonalAccessTokenForUserAsync(applicationUserId, cancellationToken);
                 if (plainToken is null)
                 {
                     _logger.LogInformation(
@@ -535,7 +552,7 @@ public class DiscogsService : IDiscogsService
 
                 _discogsAuthenticationService.AuthenticateWithPersonalAccessToken(plainToken);
                 var value = await _discogsApiClient.GetCollectionValue(discogsUsername, cancellationToken);
-                var userRow = await _db.Users.FirstOrDefaultAsync(u => u.Id == applicationUserId, cancellationToken);
+                var userRow = await _db.Users.FirstOrDefaultAsync(x => x.Id == applicationUserId, cancellationToken);
                 if (userRow is null)
                     return;
 
@@ -590,7 +607,7 @@ public class DiscogsService : IDiscogsService
 
     public async Task SyncUserInBackground(string applicationUserId, CancellationToken ct)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == applicationUserId, ct);
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == applicationUserId, ct);
         if (user is null)
         {
             _logger.LogWarning("Sync requested for missing user {UserId}", applicationUserId);
@@ -653,18 +670,18 @@ public class DiscogsService : IDiscogsService
                   || releaseCover.LocalImageFilename != null
                   || releaseCover.LocalThumbnailFilename != null
             from assoc in releaseCover.Release.UserAssociations
-            join u in _db.Users on assoc.UserId equals u.Id
-            where u.DiscogsUsername != null && !string.IsNullOrWhiteSpace(u.DiscogsUsername)
+            join x in _db.Users on assoc.UserId equals x.Id
+            where x.DiscogsUsername != null && !string.IsNullOrWhiteSpace(x.DiscogsUsername)
             select new
             {
                 Cover = releaseCover,
-                OwnerDiscogsUsername = u.DiscogsUsername!.Trim(),
+                OwnerDiscogsUsername = x.DiscogsUsername!.Trim(),
                 AlbumName = releaseCover.Release.Album,
             }).ToListAsync(ct);
 
         var distinctDownloadTargets = coverRowsForOwnersWithDiscogsUsername
             .GroupBy(x => new { x.Cover.Id, x.OwnerDiscogsUsername })
-            .Select(g => g.First())
+            .Select(x => x.First())
             .ToList();
 
         _logger.LogInformation(
@@ -1038,14 +1055,14 @@ public class DiscogsService : IDiscogsService
             var requestedGenres = genres
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
-                .Select(trimmed => new { Trimmed = trimmed, Normalized = trimmed.ToLowerInvariant() })
+                .Select(y => new { Trimmed = y, Normalized = y.ToLowerInvariant() })
                 .DistinctBy(x => x.Normalized)
                 .ToList();
 
             var requestedGenreKeys = requestedGenres.Select(x => x.Normalized).ToList();
             var existingGenres = await _db.Genres
                 .Where(x => requestedGenreKeys.Contains(x.NormalizedName))
-                .ToDictionaryAsync(g => g.NormalizedName, g => g, StringComparer.Ordinal, ct);
+                .ToDictionaryAsync(x => x.NormalizedName, y => y, StringComparer.Ordinal, ct);
 
             foreach (var item in requestedGenres)
             {
@@ -1066,14 +1083,14 @@ public class DiscogsService : IDiscogsService
         var requestedStyles = styles
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
-            .Select(trimmed => new { Trimmed = trimmed, Normalized = trimmed.ToLowerInvariant() })
+            .Select(y => new { Trimmed = y, Normalized = y.ToLowerInvariant() })
             .DistinctBy(x => x.Normalized)
             .ToList();
 
         var requestedStyleKeys = requestedStyles.Select(x => x.Normalized).ToList();
         var existingStyles = await _db.Styles
             .Where(x => requestedStyleKeys.Contains(x.NormalizedName))
-            .ToDictionaryAsync(s => s.NormalizedName, s => s, StringComparer.Ordinal, ct);
+            .ToDictionaryAsync(x => x.NormalizedName, y => y, StringComparer.Ordinal, ct);
 
         foreach (var item in requestedStyles)
         {
@@ -1109,7 +1126,7 @@ public class DiscogsService : IDiscogsService
         {
             try
             {
-                if (await _db.Tracks.AnyAsync(t => t.ReleaseId == release.Id, ct))
+                if (await _db.Tracks.AnyAsync(x => x.ReleaseId == release.Id, ct))
                 {
                     _logger.LogInformation(
                         "Skipping details for {Album} ({DiscogsReleaseId}); tracks were already synced.",
@@ -1122,7 +1139,7 @@ public class DiscogsService : IDiscogsService
 
                 await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
-                if (await _db.Tracks.AnyAsync(t => t.ReleaseId == release.Id, ct))
+                if (await _db.Tracks.AnyAsync(x => x.ReleaseId == release.Id, ct))
                 {
                     _logger.LogInformation(
                         "Skipping details for {Album} ({DiscogsReleaseId}); tracks were already synced.",
@@ -1224,7 +1241,7 @@ public class DiscogsService : IDiscogsService
             await _discogsExclusiveGate.WaitAsync(ct);
             try
             {
-                var artist = await _db.Artists.FirstAsync(a => a.Id == row.Id, ct);
+                var artist = await _db.Artists.FirstAsync(x => x.Id == row.Id, ct);
                 var details = await _discogsApiClient.GetArtist(row.DiscogsArtistId, ct);
                 artist.DiscogsProfile = details.Profile;
 
@@ -1269,7 +1286,7 @@ public class DiscogsService : IDiscogsService
             await _discogsExclusiveGate.WaitAsync(ct);
             try
             {
-                var label = await _db.Labels.FirstAsync(l => l.Id == row.Id, ct);
+                var label = await _db.Labels.FirstAsync(x => x.Id == row.Id, ct);
                 var details = await _discogsApiClient.GetLabel(row.DiscogsLabelId, ct);
                 label.DiscogsProfile = details.Profile;
 

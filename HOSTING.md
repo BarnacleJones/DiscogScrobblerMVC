@@ -255,7 +255,7 @@ The database under **`./data`** stores each user’s Discogs **personal token in
 1. Browser → **`http://<server-ip>:5100`**
 2. **Register** the first user — they become **Admin** and can sign in immediately.
 3. Anyone else: **Register**, then wait. They **cannot log in** until an Admin opens **Settings** and **approves** them (or **denies**, which removes that signup). There is **no** email confirmation.
-4. In **Settings**, set **Discogs username** and **personal access token**, then sync (or wait for the daily sync if both are saved). Large collections can take a long time—Discogs rate limits are normal. You can use the site while sync runs.
+4. In **Settings**, set at least **Discogs username**. Add **personal access token** if the Discogs collection is private or you want **collection value** synced — without a token, collection sync only works if the Discogs **collection visibility** is public (see **[README.md](README.md)**). Then sync (or wait for the daily sync). Large collections can take a long time—Discogs rate limits are normal. You can use the site while sync runs.
 
 ---
 
@@ -298,7 +298,7 @@ Your **database** and **images** stay in **`./data`** and **`./images`** on the 
 | Build **very slow** or huge upload | Add **`.dockerignore`** next to **`docker-compose.yml`** — see **step 5**. |
 | **Covers gone** after a rebuild | Check **`./images:/app/images`** is still in Compose and the **`images`** folder is writable. |
 | Covers not landing in **`/app/images`** | Keep **`App:ImageBasePath`** as **`/app/images`**, keep the volume line, read logs for permission errors. |
-| Collection / value never updates | User needs **both** Discogs **username** and **personal token** in **Settings**; background sync only runs when both exist. |
+| Collection never updates, or log shows 403 / &quot;authenticate as the owner&quot; | Set **Discogs username**. If no **personal token**: Discogs **collection** must be **public** in Discogs privacy settings. Private collections need **Generate token** in **Settings**. **Collection value** (min/median/max) always needs a token. |
 | **Wrong port** | In **`docker-compose.yml`**, change **`5100:8080`** — change **only the first number** (`5100`) unless you know you need to change the container side. |
 
 If in doubt, **`docker compose logs`** usually explains a startup failure.

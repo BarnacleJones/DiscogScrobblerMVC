@@ -14,6 +14,8 @@ Personal Discogs ↔ Last.fm companion: mirror your vinyl collection locally, br
 
 **What it does:** Discogs-backed collection sync (metadata, tracklists, art to local disk), searchable collection UI, artist/label pages scoped to owned releases, **Tracks** browser, **Stats dashboard** (`/Stats`), **Settings** (Discogs username, optional personal access token, sync triggers, Last.fm OAuth), periodic + on-demand sync jobs, and Serilog logs.
 
+**Discogs token:** Optional only if your Discogs **collection** is **public** (account privacy / collection visibility). Without a token the app syncs folder **0** ("All") anonymously and **cannot** list your folders (that API is owner-only). **Private** collections need **Generate token** (Discogs → Settings → Developers) saved in **Settings** here, or Discogs returns **403**. **Collection value** (min/median/max) **always** needs a token.
+
 **Cover art on disk (`App:ImageBasePath`):** The app caches images under one configurable folder (see **[HOSTING.md](HOSTING.md)** for Docker paths). Inside that folder it uses:
 
 | Path under `ImageBasePath` | Contents |
