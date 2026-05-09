@@ -31,9 +31,10 @@ else
                     <a asp-controller="Release" asp-action="Index" asp-route-id="@r.ReleaseId" tabindex="-1" aria-hidden="true">
                         <img class="album-cover"
                              src="@cover"
-                             alt="@r.Album"
+                             alt=""
                              loading="lazy"
-                             decoding="async" />
+                             decoding="async"
+                             onerror="this.onerror=null;this.src='@coverFallback'" />
                     </a>
                     <div class="card-body d-flex flex-column gap-2">
                         <div>

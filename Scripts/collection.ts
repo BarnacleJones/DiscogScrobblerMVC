@@ -5,6 +5,8 @@ import { escapeAttr, escapeHtml } from './shared/htmlEscape';
 // Declare them so TypeScript doesn't complain
 declare const $: any;
 
+const collectionCoverFallback = '/images/placeholder-cover.svg';
+
 interface CollectionArtistLink {
     id: number;
     name: string;
@@ -53,12 +55,10 @@ function formatYearLink(data: number | null, type: string): string {
 
 function formatCoverThumb(_data: unknown, type: string, row: CollectionItem): string {
     if (type === 'sort' || type === 'filter' || type === 'type') return '';
-    const coverUrl = row.coverUrl;
-    if (coverUrl && String(coverUrl).trim()) {
-        const safeCoverUrl = escapeAttr(String(coverUrl));
-        return `<a href="/release/${row.releaseId}" class="collection-cover-link" tabindex="-1" aria-hidden="true"><img class="collection-cover-thumb" src="${safeCoverUrl}" alt="" loading="lazy" width="40" height="40" /></a>`;
-    }
-    return '<div class="collection-cover-placeholder" aria-hidden="true"></div>';
+    const trimmed = row.coverUrl != null ? String(row.coverUrl).trim() : '';
+    const coverSrc = trimmed || collectionCoverFallback;
+    const safeCoverUrl = escapeAttr(coverSrc);
+    return `<a href="/release/${row.releaseId}" class="collection-cover-link" tabindex="-1" aria-hidden="true"><img class="collection-cover-thumb" src="${safeCoverUrl}" alt="" loading="lazy" width="40" height="40" onerror="this.onerror=null;this.src='${collectionCoverFallback}'" /></a>`;
 }
 
 function expandedRowHtml(item: CollectionItem): string {

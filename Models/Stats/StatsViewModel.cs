@@ -11,8 +11,8 @@ public class StatsViewModel
     /// <summary>Releases that have at least one track row ingested.</summary>
     public int IngestedReleaseCount { get; set; }
 
-    /// <summary>OwnedReleaseCount minus IngestedReleaseCount; used for the "syncing N releases…" hint.</summary>
-    public int PendingReleaseCount => Math.Max(0, OwnedReleaseCount - IngestedReleaseCount);
+    /// <summary>Owned releases with <see cref="Data.Entities.Release.SchemaVersion"/> below <see cref="Data.Entities.Release.ReleaseSchemaVersion"/>; drives the “syncing N releases…” hint.</summary>
+    public int PendingReleaseCount { get; set; }
 
     public int TotalTracks { get; set; }
 

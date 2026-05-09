@@ -33,7 +33,14 @@
                     <button id="registerSubmit" type="submit" class="btn btn-primary">Register</button>
                 </form>
                 <p class="text-secondary small mb-2 mt-3">
-                    The first account created on the server is the admin, new registrations stay pending until an administrator approves them under <strong>Settings</strong>.
+                    @if (Model.HasExistingAdmin)
+                    {
+                        @:New registrations stay pending until an administrator approves them under <strong>Settings</strong>.
+                    }
+                    else
+                    {
+                        @:The first account created on the server is the admin, new registrations stay pending until an administrator approves them under <strong>Settings</strong>.
+                    }
                 </p>
                 <p class="text-secondary small mb-2">
                     After you can sign in, connect <strong>Discogs</strong> (and optionally a personal access token) under <strong>Settings</strong> — see the note there for public vs private Discogs collections.

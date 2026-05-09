@@ -52,6 +52,8 @@ namespace DiscogScrobblerMVC.Areas.Identity.Pages.Account
 
         public IList<AuthenticationScheme> ExternalLogins { get; set; }
 
+        public bool HasExistingAdmin { get; set; }
+
         public class InputModel
         {
             [Required]
@@ -75,12 +77,14 @@ namespace DiscogScrobblerMVC.Areas.Identity.Pages.Account
         {
             ReturnUrl = returnUrl;
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+            await RefreshRegisterPageFlagsAsync();
         }
 
         public async Task<IActionResult> OnPostAsync(string returnUrl = null, CancellationToken cancellationToken = default)
         {
             returnUrl ??= Url.Content("~/");
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+            await RefreshRegisterPageFlagsAsync();
             if (ModelState.IsValid)
             {
                 // Serializable: two concurrent first sign-ups must not both see an empty user set.
@@ -129,6 +133,12 @@ namespace DiscogScrobblerMVC.Areas.Identity.Pages.Account
             }
 
             return Page();
+        }
+
+        private async Task RefreshRegisterPageFlagsAsync()
+        {
+            var admins = await _userManager.GetUsersInRoleAsync(AppRoles.Admin);
+            HasExistingAdmin = admins.Count > 0;
         }
 
         private ApplicationUser CreateUser()

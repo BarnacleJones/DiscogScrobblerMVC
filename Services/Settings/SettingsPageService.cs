@@ -234,7 +234,7 @@ public class SettingsPageService : ISettingsPageService
 
         var enqueued = _syncQueue.EnqueueUserFullSync(user.Id);
         return enqueued
-            ? "Sync started in the background. Without a personal access token, Discogs only exposes public collection data (typically the All folder)."
+            ? "Sync started in the background."
             : "Could not start sync — try again.";
     }
 

@@ -1,25 +1,21 @@
 @model IEnumerable<DiscogScrobblerMVC.Models.CollectionReleaseCardViewModel>
+@{
+    var coverFallback = "/images/placeholder-cover.svg";
+}
 
 <div class="release-grid">
     @foreach (var release in Model)
     {
+        var coverSrc = string.IsNullOrWhiteSpace(release.CoverUrl) ? coverFallback : release.CoverUrl!;
         <a class="release-mini-card"
            asp-controller="Release"
            asp-action="Index"
            asp-route-id="@release.ReleaseId">
-            @if (release.CoverUrl is not null)
-            {
-                <img src="@release.CoverUrl"
-                     alt="@release.Album cover"
-                     loading="lazy"
-                     decoding="async" />
-            }
-            else
-            {
-                <div class="release-mini-cover-placeholder">
-                    <span class="release-mini-cover-placeholder-text">no cover</span>
-                </div>
-            }
+            <img src="@coverSrc"
+                 alt=""
+                 loading="lazy"
+                 decoding="async"
+                 onerror="this.onerror=null;this.src='@coverFallback'" />
             <div class="release-mini-card-info">
                 <div class="release-mini-title">@release.Album</div>
                 <div class="release-mini-year">@(release.Year?.ToString() ?? "—")</div>
