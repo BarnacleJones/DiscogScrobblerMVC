@@ -20,7 +20,6 @@ public class SettingsPageService : ISettingsPageService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationDbContext _db;
     private readonly IDiscogsSyncQueue _syncQueue;
-    private readonly IDiscogsMetadataRefreshQueue _metadataRefreshQueue;
     private readonly ILastFmOAuthService _lastFmOAuth;
     private readonly IDistributedCache _cache;
     private readonly IAccountApprovalService _accountApproval;
@@ -30,7 +29,6 @@ public class SettingsPageService : ISettingsPageService
         UserManager<ApplicationUser> userManager,
         ApplicationDbContext db,
         IDiscogsSyncQueue syncQueue,
-        IDiscogsMetadataRefreshQueue metadataRefreshQueue,
         ILastFmOAuthService lastFmOAuth,
         IDistributedCache cache,
         IAccountApprovalService accountApproval,
@@ -39,7 +37,6 @@ public class SettingsPageService : ISettingsPageService
         _userManager = userManager;
         _db = db;
         _syncQueue = syncQueue;
-        _metadataRefreshQueue = metadataRefreshQueue;
         _lastFmOAuth = lastFmOAuth;
         _cache = cache;
         _accountApproval = accountApproval;
@@ -236,14 +233,6 @@ public class SettingsPageService : ISettingsPageService
         return enqueued
             ? "Sync started in the background."
             : "Could not start sync — try again.";
-    }
-
-    public string RefreshDiscogsArtistLabelDetails()
-    {
-        var enqueued = _metadataRefreshQueue.EnqueueRefreshAllArtistLabelDetails();
-        return enqueued
-            ? "Artist and label metadata refresh started in the background."
-            : "Could not start metadata refresh — try again.";
     }
 
     private static string PendingLastFmCacheKey(string userId) => $"lastfm:pending-token:{userId}";

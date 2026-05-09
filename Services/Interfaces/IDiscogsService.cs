@@ -10,7 +10,9 @@ public interface IDiscogsService
     Task SyncReleaseDetails(CancellationToken cancellationToken, string? restrictToApplicationUserId = null);
 
     /// <summary>
-    /// Re-download Discogs profiles for every artist/label row with IDs. Existing stored image URLs are left unchanged unless empty.
+    /// Re-download Discogs profiles for artist/label rows behind schema version (GET artist/label).
+    /// When <paramref name="restrictToApplicationUserId"/> is set, only entities linked to that user's collection releases are refreshed.
+    /// Existing stored image URLs are left unchanged unless empty.
     /// </summary>
-    Task RefreshAllArtistLabelDiscogsDetailsAsync(CancellationToken cancellationToken);
+    Task RefreshAllArtistLabelDiscogsDetailsAsync(CancellationToken cancellationToken, string? restrictToApplicationUserId = null);
 }

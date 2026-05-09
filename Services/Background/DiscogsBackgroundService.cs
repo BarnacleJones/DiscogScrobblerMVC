@@ -50,6 +50,7 @@ public class DiscogsBackgroundService : BackgroundService
         await discogsService.SyncCollectionInBackground(cancellationToken);
         await discogsService.SyncReleaseDetails(cancellationToken);
         await discogsService.DownloadMissingImages(cancellationToken);
+        await discogsService.RefreshAllArtistLabelDiscogsDetailsAsync(cancellationToken);
 
         _logger.LogInformation("Discogs sync complete at {Time}", DateTimeOffset.Now);
     }

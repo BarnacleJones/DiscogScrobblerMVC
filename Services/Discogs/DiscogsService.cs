@@ -624,6 +624,7 @@ public class DiscogsService : IDiscogsService
         await SyncUserInBackground(applicationUserId, cancellationToken);
         await SyncReleaseDetails(cancellationToken, applicationUserId);
         await DownloadMissingImages(cancellationToken, applicationUserId);
+        await RefreshAllArtistLabelDiscogsDetailsAsync(cancellationToken, applicationUserId);
     }
 
     public async Task DownloadMissingImages(CancellationToken cancellationToken, string? restrictToApplicationUserId = null)
@@ -1289,28 +1290,66 @@ public class DiscogsService : IDiscogsService
             failedCount);
     }
 
-    public async Task RefreshAllArtistLabelDiscogsDetailsAsync(CancellationToken cancellationToken)
+    public async Task RefreshAllArtistLabelDiscogsDetailsAsync(
+        CancellationToken cancellationToken,
+        string? restrictToApplicationUserId = null)
     {
-        var artists = await _db.Artists.AsNoTracking()
-            .Where(x => x.DiscogsArtistId != null && x.SchemaVersion < Artist.ArtistSchemaVersion)
+        var artistsQuery = _db.Artists.AsNoTracking()
+            .Where(x => x.DiscogsArtistId != null && x.SchemaVersion < Artist.ArtistSchemaVersion);
+
+        if (restrictToApplicationUserId is not null)
+        {
+            artistsQuery = artistsQuery.Where(a =>
+                a.Releases.Any(r => r.UserAssociations.Any(u => u.UserId == restrictToApplicationUserId)));
+        }
+
+        var artists = await artistsQuery
             .Select(x => new ArtistMetadataRefreshRow(x.Id, x.DiscogsArtistId!.Value))
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "Refreshing Discogs metadata for {ArtistCount} artists.",
-            artists.Count);
+        if (restrictToApplicationUserId is null)
+        {
+            _logger.LogInformation(
+                "Refreshing Discogs metadata for {ArtistCount} artists.",
+                artists.Count);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Refreshing Discogs metadata for {ArtistCount} artists (user {UserId}).",
+                artists.Count,
+                restrictToApplicationUserId);
+        }
 
         foreach (var artist in artists)
             await RefreshArtistDiscogsDetailsAsync(artist, cancellationToken);
 
-        var labels = await _db.Labels.AsNoTracking()
-            .Where(x => x.DiscogsLabelId != null && x.SchemaVersion < Label.LabelSchemaVersion)
+        var labelsQuery = _db.Labels.AsNoTracking()
+            .Where(x => x.DiscogsLabelId != null && x.SchemaVersion < Label.LabelSchemaVersion);
+
+        if (restrictToApplicationUserId is not null)
+        {
+            labelsQuery = labelsQuery.Where(l =>
+                l.Releases.Any(r => r.UserAssociations.Any(u => u.UserId == restrictToApplicationUserId)));
+        }
+
+        var labels = await labelsQuery
             .Select(x => new LabelMetadataRefreshRow(x.Id, x.DiscogsLabelId!.Value))
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "Refreshing Discogs metadata for {LabelCount} labels.",
-            labels.Count);
+        if (restrictToApplicationUserId is null)
+        {
+            _logger.LogInformation(
+                "Refreshing Discogs metadata for {LabelCount} labels.",
+                labels.Count);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Refreshing Discogs metadata for {LabelCount} labels (user {UserId}).",
+                labels.Count,
+                restrictToApplicationUserId);
+        }
 
         foreach (var label in labels)
             await RefreshLabelDiscogsDetailsAsync(label, cancellationToken);
