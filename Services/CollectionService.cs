@@ -138,19 +138,19 @@ public class CollectionService : ICollectionService
             })
             .OrderBy(x => x.Key.Album)
             .Take(SearchArtistReleaseLimit)
-            .Select(g => new
+            .Select(x => new
             {
-                ReleaseId = g.Key.DiscogsReleaseId,
-                g.Key.Album,
-                g.Key.Year,
-                g.Key.LocalThumbnailFilename,
-                g.Key.LocalImageFilename,
-                g.Key.CoverUrl,
+                ReleaseId = x.Key.DiscogsReleaseId,
+                x.Key.Album,
+                x.Key.Year,
+                x.Key.LocalThumbnailFilename,
+                x.Key.LocalImageFilename,
+                x.Key.CoverUrl,
                 Artists = _db.Releases
-                    .Where(x => x.DiscogsReleaseId == g.Key.DiscogsReleaseId)
-                    .SelectMany(x => x.Artists)
-                    .OrderBy(x => x.Name)
-                    .Select(x => x.Name)
+                    .Where(y => y.DiscogsReleaseId == x.Key.DiscogsReleaseId)
+                    .SelectMany(y => y.Artists)
+                    .OrderBy(y => y.Name)
+                    .Select(y => y.Name)
                     .ToList(),
             })
             .ToListAsync(cancellationToken);

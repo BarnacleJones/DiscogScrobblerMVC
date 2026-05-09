@@ -58,8 +58,8 @@ public class StatsService : IStatsService
             .GroupBy(_ => 1)
             .Select(x => new
             {
-                Avg = x.Average(t => (double?)t.DurationSeconds),
-                Sample = x.Count(t => t.DurationSeconds != null),
+                Avg = x.Average(y => (double?)y.DurationSeconds),
+                Sample = x.Count(y => y.DurationSeconds != null),
                 Total = x.Count(),
             })
             .FirstOrDefaultAsync(cancellationToken);

@@ -44,7 +44,7 @@ public class ArtistService : IArtistService
             await DiscogsCoverSubfolder.TryGetNameForSignedInUserAsync(
                 _db, viewerApplicationUserId, cancellationToken);
 
-        var artist = await _db.Artists.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        var artist = await _db.Artists.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (artist is null)
             return null;

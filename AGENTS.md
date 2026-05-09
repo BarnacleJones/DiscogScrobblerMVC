@@ -42,6 +42,7 @@
   - `Services/Settings/` for Settings page orchestration.
   - `Services/Caching/` for cache keys/entries.
   - `Services/Utilities/` for small stateless helpers.
+- **Discogs collection sync (`DiscogsService`):** Without a saved PAT, do not call `GetCollectionFolders` (owner-only on Discogs); sync folder **0** via public endpoints only — requires the Discogs **collection** to be **public**. Private/restricted collections need a PAT. **`TryRefreshStoredCollectionValueAsync`** always needs a PAT.
 - `Models/` is grouped by feature (`Collection`, `Catalog`, `Stats`, `Tracks`, `Home`, `Settings`, `Shared`) while keeping the `DiscogScrobblerMVC.Models` namespace.
 - Prefer `ViewModel` names for MVC/data-to-view shapes. Avoid new `Dto` names unless a true external transport contract appears.
 

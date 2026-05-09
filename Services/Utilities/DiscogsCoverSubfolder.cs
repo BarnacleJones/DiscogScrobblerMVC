@@ -11,8 +11,8 @@ public static class DiscogsCoverSubfolder
         CancellationToken cancellationToken = default)
     {
         var discogsUsernameStoredOnUser = await db.Users.AsNoTracking()
-            .Where(u => u.Id == applicationUserId)
-            .Select(u => u.DiscogsUsername)
+            .Where(x => x.Id == applicationUserId)
+            .Select(x => x.DiscogsUsername)
             .FirstOrDefaultAsync(cancellationToken);
 
         return TryGetNameFromDiscogsUsername(discogsUsernameStoredOnUser);

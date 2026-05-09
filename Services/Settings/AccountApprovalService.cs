@@ -59,7 +59,7 @@ public class AccountApprovalService : IAccountApprovalService
         var update = await _userManager.UpdateAsync(target);
         if (!update.Succeeded)
         {
-            var err = string.Join("; ", update.Errors.Select(e => e.Description));
+            var err = string.Join("; ", update.Errors.Select(x => x.Description));
             return new AccountApprovalResult(false, err);
         }
 
@@ -90,7 +90,7 @@ public class AccountApprovalService : IAccountApprovalService
         var deleted = await _userManager.DeleteAsync(target);
         if (!deleted.Succeeded)
         {
-            var err = string.Join("; ", deleted.Errors.Select(e => e.Description));
+            var err = string.Join("; ", deleted.Errors.Select(x => x.Description));
             return new AccountApprovalResult(false, err);
         }
 

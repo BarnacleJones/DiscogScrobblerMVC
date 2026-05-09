@@ -255,7 +255,7 @@ The database under **`./data`** stores each user’s Discogs **personal token in
 1. Browser → **`http://<server-ip>:5100`**
 2. **Register** the first user — they become **Admin** and can sign in immediately.
 3. Anyone else: **Register**, then wait. They **cannot log in** until an Admin opens **Settings** and **approves** them (or **denies**, which removes that signup). There is **no** email confirmation.
-4. In **Settings**, set **Discogs username** and **personal access token**, then sync (or wait for the daily sync if both are saved). Large collections can take a long time—Discogs rate limits are normal. You can use the site while sync runs.
+4. In **Settings**, set at least **Discogs username**. Add **personal access token** if the Discogs collection is private or you want **collection value** synced — without a token, collection sync only works if the Discogs **collection visibility** is public (see **[README.md](README.md)**). Then sync (or wait for the daily sync). Large collections can take a long time—Discogs rate limits are normal. You can use the site while sync runs.
 
 ---
 
@@ -290,6 +290,68 @@ Your **database** and **images** stay in **`./data`** and **`./images`** on the 
 
 ---
 
+## One-command deploy: `main` branch script (optional)
+
+If you always deploy from **`main`** and use the same layout as this guide (`~/docker/DiscogScrobbler` with the repo in **`DiscogScrobblerMVC`**), you can save a short script in your home folder and run it whenever you want a fresh pull and rebuild.
+
+**What the script does (in order):**
+
+1. **`cd`** into **`~/docker/DiscogScrobbler/DiscogScrobblerMVC`**, checks out **`main`**, and **`git pull`** — your running containers still match whatever was on disk until the next step.
+2. **`cd`** back to **`~/docker/DiscogScrobbler`** and runs **`docker compose down`** — stops and removes the current containers (your **data**, **logs**, and **images** on the host are **not** removed; they are normal folders + volumes from step 2 / step 6).
+3. **`docker compose up -d --build`** — builds a new image from the updated code and starts the stack in the background.
+
+**`set -e`** means the script **stops immediately** if any command fails (for example **`git`** or **`docker compose`** errors), instead of continuing.
+
+### Create the script
+
+```bash
+nano ~/deploy-main.sh
+```
+
+Paste **exactly**:
+
+```bash
+#!/bin/bash
+set -e
+
+PROJECT_ROOT=~/docker/DiscogScrobbler
+MVC_DIR=$PROJECT_ROOT/DiscogScrobblerMVC
+
+echo "=== Deploying MAIN branch ==="
+
+cd $MVC_DIR
+git checkout main
+git pull
+
+cd $PROJECT_ROOT
+docker compose down
+docker compose up -d --build
+
+echo "=== Done ==="
+```
+
+Save and exit (**Ctrl+O**, Enter, **Ctrl+X** in nano).
+
+### Make it executable
+
+```bash
+chmod +x ~/deploy-main.sh
+```
+
+Without **`chmod +x`**, the shell will not run the file as a program.
+
+### Run a deploy
+
+From any directory:
+
+```bash
+~/deploy-main.sh
+```
+
+**Requirements:** The paths at the top of the script must match where you actually put the project and Compose file. If you used a different **`PROJECT_ROOT`**, edit those two variables before relying on the script.
+
+---
+
 ## Troubleshooting — quick table
 
 | What you see | What to try |
@@ -298,7 +360,7 @@ Your **database** and **images** stay in **`./data`** and **`./images`** on the 
 | Build **very slow** or huge upload | Add **`.dockerignore`** next to **`docker-compose.yml`** — see **step 5**. |
 | **Covers gone** after a rebuild | Check **`./images:/app/images`** is still in Compose and the **`images`** folder is writable. |
 | Covers not landing in **`/app/images`** | Keep **`App:ImageBasePath`** as **`/app/images`**, keep the volume line, read logs for permission errors. |
-| Collection / value never updates | User needs **both** Discogs **username** and **personal token** in **Settings**; background sync only runs when both exist. |
+| Collection never updates, or log shows 403 / &quot;authenticate as the owner&quot; | Set **Discogs username**. If no **personal token**: Discogs **collection** must be **public** in Discogs privacy settings. Private collections need **Generate token** in **Settings**. **Collection value** (min/median/max) always needs a token. |
 | **Wrong port** | In **`docker-compose.yml`**, change **`5100:8080`** — change **only the first number** (`5100`) unless you know you need to change the container side. |
 
 If in doubt, **`docker compose logs`** usually explains a startup failure.

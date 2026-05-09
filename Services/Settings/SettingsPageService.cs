@@ -87,8 +87,8 @@ public class SettingsPageService : ISettingsPageService
                     x.LocalThumbnailFilename,
                     x.LocalImageFilename,
                     x.CoverUrl))
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!)
+            .Where(y => !string.IsNullOrWhiteSpace(y))
+            .Select(y => y!)
             .Distinct()
             .Take(MaxLastFmCoverCandidates)
             .ToList();
@@ -107,14 +107,25 @@ public class SettingsPageService : ISettingsPageService
         bool clearPersonalAccessToken,
         CancellationToken cancellationToken)
     {
-        user.DiscogsUsername = string.IsNullOrWhiteSpace(discogsUsername) ? null : discogsUsername.Trim();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Always load a fresh tracked entity — avoids failed updates when the principal snapshot is stale
+        // (ConcurrencyStamp / custom columns) or ChangeTracker state is unexpected on scoped DbContext.
+        var freshUser = await _userManager.FindByIdAsync(user.Id);
+        if (freshUser is null)
+        {
+            _logger.LogError("SaveDiscogsSettingsAsync: FindByIdAsync returned null for user {UserId}", user.Id);
+            return new SettingsSaveResult(false, string.Empty, ["Your account could not be loaded. Try signing out and back in."]);
+        }
+
+        freshUser.DiscogsUsername = string.IsNullOrWhiteSpace(discogsUsername) ? null : discogsUsername.Trim();
 
         if (clearPersonalAccessToken)
-            user.DiscogsPersonalAccessToken = null;
+            freshUser.DiscogsPersonalAccessToken = null;
         else if (!string.IsNullOrWhiteSpace(personalAccessTokenSubmission))
-            user.DiscogsPersonalAccessToken = personalAccessTokenSubmission.Trim();
+            freshUser.DiscogsPersonalAccessToken = personalAccessTokenSubmission.Trim();
 
-        var result = await _userManager.UpdateAsync(user);
+        var result = await _userManager.UpdateAsync(freshUser);
         if (result.Succeeded)
             return new SettingsSaveResult(true, "Settings saved.", []);
 
@@ -166,17 +177,22 @@ public class SettingsPageService : ISettingsPageService
         if (!ok || string.IsNullOrWhiteSpace(sessionKey))
             return $"Could not verify Last.fm: {exchangeError}";
 
-        user.LastFmSessionKey = sessionKey;
-        user.LastFmUsername = lastFmUsername;
+        var freshUser = await _userManager.FindByIdAsync(user.Id);
+        if (freshUser is null)
+        {
+            _logger.LogError("CompleteLastFmCallbackAsync: FindByIdAsync returned null for user {UserId}", user.Id);
+            return "Your account could not be loaded. Try signing out and back in, then Finish linking Last.fm.";
+        }
 
-        var saved = await _userManager.UpdateAsync(user);
+        freshUser.LastFmSessionKey = sessionKey;
+        freshUser.LastFmUsername = lastFmUsername;
+
+        var saved = await _userManager.UpdateAsync(freshUser);
         if (!saved.Succeeded)
         {
             var details = string.Join("; ", saved.Errors.Select(x => $"{x.Code}: {x.Description}"));
             _logger.LogError("Persisting Last.fm session key failed after OAuth for user {UserId}: {Details}", user.Id, details);
 
-            user.LastFmSessionKey = null;
-            user.LastFmUsername = null;
             return $"Last.fm replied OK but this app could not save your session: {details}";
         }
 
@@ -189,12 +205,19 @@ public class SettingsPageService : ISettingsPageService
 
     public async Task<string> DisconnectLastFmAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
-        user.LastFmSessionKey = null;
-        user.LastFmUsername = null;
+        var freshUser = await _userManager.FindByIdAsync(user.Id);
+        if (freshUser is null)
+        {
+            _logger.LogError("DisconnectLastFmAsync: FindByIdAsync returned null for user {UserId}", user.Id);
+            return "Your account could not be loaded. Try signing out and back in.";
+        }
+
+        freshUser.LastFmSessionKey = null;
+        freshUser.LastFmUsername = null;
 
         await _cache.RemoveAsync(PendingLastFmCacheKey(user.Id), cancellationToken);
 
-        var saved = await _userManager.UpdateAsync(user);
+        var saved = await _userManager.UpdateAsync(freshUser);
         if (saved.Succeeded)
             return "Last.fm disconnected from this profile.";
 
