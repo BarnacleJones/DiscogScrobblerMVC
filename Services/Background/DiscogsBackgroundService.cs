@@ -38,7 +38,7 @@ public class DiscogsBackgroundService : BackgroundService
         }
     }
 
-    private async Task RunJobAsync(CancellationToken ct)
+    private async Task RunJobAsync(CancellationToken cancellationToken)
     {
         // Use a scope to resolve scoped/transient services
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -47,9 +47,9 @@ public class DiscogsBackgroundService : BackgroundService
 
         _logger.LogInformation("Starting Discogs sync at {Time}", DateTimeOffset.Now);
 
-        await discogsService.SyncCollectionInBackground(ct);
-        await discogsService.SyncReleaseDetails(ct);
-        await discogsService.DownloadMissingImages(ct);
+        await discogsService.SyncCollectionInBackground(cancellationToken);
+        await discogsService.SyncReleaseDetails(cancellationToken);
+        await discogsService.DownloadMissingImages(cancellationToken);
 
         _logger.LogInformation("Discogs sync complete at {Time}", DateTimeOffset.Now);
     }

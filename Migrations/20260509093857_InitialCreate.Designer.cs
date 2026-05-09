@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DiscogScrobblerMVC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260508223818_InitialCreate")]
+    [Migration("20260509093857_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -159,6 +159,9 @@ namespace DiscogScrobblerMVC.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DiscogsArtistId")
@@ -295,6 +298,9 @@ namespace DiscogScrobblerMVC.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DiscogsLabelId")
@@ -316,10 +322,25 @@ namespace DiscogScrobblerMVC.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("CommunityHaveCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CommunityWantCount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("DiscogsMasterId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("DiscogsReleaseId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Format")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SchemaVersion")
                         .HasColumnType("INTEGER");
 
                     b.Property<int?>("Year")
