@@ -51,53 +51,29 @@ public class LabelService : ILabelService
         var profile = label.DiscogsProfile;
         var imageUrl = label.DiscogsImageUrl;
 
-        var needProfile = string.IsNullOrWhiteSpace(profile);
-        var needImage = string.IsNullOrWhiteSpace(imageUrl);
-
-        if (label.DiscogsLabelId.HasValue)
+        if (label.DiscogsLabelId is int discogsLabelIdForApi && label.SchemaVersion < Label.LabelSchemaVersion)
         {
-            var discogsId = label.DiscogsLabelId.Value;
-            var cacheKey = DiscogsMemoryCacheKeys.LabelDetails(discogsId);
+            var cacheKey = DiscogsMemoryCacheKeys.LabelDetails(discogsLabelIdForApi);
 
-            if ((needProfile || needImage)
-                && _memoryCache.TryGetValue(cacheKey, out var raw)
-                && raw is DiscogsEntityDetailCacheEntry cached)
+            try
             {
-                if (needProfile && !string.IsNullOrWhiteSpace(cached.Profile))
-                    profile = cached.Profile;
-                if (needImage && !string.IsNullOrWhiteSpace(cached.ImageUrl))
-                    imageUrl = cached.ImageUrl;
-                needProfile = string.IsNullOrWhiteSpace(profile);
-                needImage = string.IsNullOrWhiteSpace(imageUrl);
+                var details = await _discogsApiClient.GetLabel(discogsLabelIdForApi);
+                profile = details.Profile;
+                imageUrl = DiscogsApiImages.PrimaryOrFirstUri(details.Images);
+
+                label.DiscogsProfile = profile;
+                label.DiscogsImageUrl = imageUrl;
+                label.SchemaVersion = Label.LabelSchemaVersion;
+                label.DiscogsDetailsFetchedAt = DateTimeOffset.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
+
+                _memoryCache.Set(cacheKey, new DiscogsEntityDetailCacheEntry(profile, imageUrl), DetailCacheOptions);
             }
-
-            if (needProfile || needImage)
+            catch (Exception ex)
             {
-                try
-                {
-                    var details = await _discogsApiClient.GetLabel(discogsId);
-                    if (needProfile)
-                        profile = details.Profile;
-
-                    var pickedImage = DiscogsApiImages.PrimaryOrFirstUri(details.Images);
-                    if (needImage)
-                        imageUrl = pickedImage;
-
-                    if (needProfile)
-                        label.DiscogsProfile = profile;
-                    if (needImage)
-                        label.DiscogsImageUrl = imageUrl;
-                    label.DiscogsDetailsFetchedAt = DateTimeOffset.UtcNow;
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _memoryCache.Set(cacheKey, new DiscogsEntityDetailCacheEntry(profile, imageUrl), DetailCacheOptions);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Failed to fetch Discogs label details for {Name} ({DiscogsLabelId})", label.Name,
-                        label.DiscogsLabelId);
-                }
+                _logger.LogWarning(ex,
+                    "Failed to fetch Discogs label details for {Name} ({DiscogsLabelId})", label.Name,
+                    label.DiscogsLabelId);
             }
         }
 

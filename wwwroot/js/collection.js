@@ -36,6 +36,7 @@
   }
 
   // Scripts/collection.ts
+  var collectionCoverFallback = "/images/placeholder-cover.svg";
   function formatDate(iso) {
     if (!iso) return "\u2014";
     return new Date(iso).toLocaleDateString("en-NZ", {
@@ -62,12 +63,10 @@
   }
   function formatCoverThumb(_data, type, row) {
     if (type === "sort" || type === "filter" || type === "type") return "";
-    const coverUrl = row.coverUrl;
-    if (coverUrl && String(coverUrl).trim()) {
-      const safeCoverUrl = escapeAttr(String(coverUrl));
-      return `<a href="/release/${row.releaseId}" class="collection-cover-link" tabindex="-1" aria-hidden="true"><img class="collection-cover-thumb" src="${safeCoverUrl}" alt="" loading="lazy" width="40" height="40" /></a>`;
-    }
-    return '<div class="collection-cover-placeholder" aria-hidden="true"></div>';
+    const trimmed = row.coverUrl != null ? String(row.coverUrl).trim() : "";
+    const coverSrc = trimmed || collectionCoverFallback;
+    const safeCoverUrl = escapeAttr(coverSrc);
+    return `<a href="/release/${row.releaseId}" class="collection-cover-link" tabindex="-1" aria-hidden="true"><img class="collection-cover-thumb" src="${safeCoverUrl}" alt="" loading="lazy" width="40" height="40" onerror="this.onerror=null;this.src='${collectionCoverFallback}'" /></a>`;
   }
   function expandedRowHtml(item) {
     const releaseUrl = `https://www.discogs.com/release/${item.releaseId}`;

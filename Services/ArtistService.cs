@@ -52,53 +52,29 @@ public class ArtistService : IArtistService
         var profile = artist.DiscogsProfile;
         var imageUrl = artist.DiscogsImageUrl;
 
-        var needProfile = string.IsNullOrWhiteSpace(profile);
-        var needImage = string.IsNullOrWhiteSpace(imageUrl);
-
-        if (artist.DiscogsArtistId.HasValue)
+        if (artist.DiscogsArtistId is int discogsIdForApi && artist.SchemaVersion < Artist.ArtistSchemaVersion)
         {
-            var discogsId = artist.DiscogsArtistId.Value;
-            var cacheKey = DiscogsMemoryCacheKeys.ArtistDetails(discogsId);
+            var cacheKey = DiscogsMemoryCacheKeys.ArtistDetails(discogsIdForApi);
 
-            if ((needProfile || needImage)
-                && _memoryCache.TryGetValue(cacheKey, out var raw)
-                && raw is DiscogsEntityDetailCacheEntry cached)
+            try
             {
-                if (needProfile && !string.IsNullOrWhiteSpace(cached.Profile))
-                    profile = cached.Profile;
-                if (needImage && !string.IsNullOrWhiteSpace(cached.ImageUrl))
-                    imageUrl = cached.ImageUrl;
-                needProfile = string.IsNullOrWhiteSpace(profile);
-                needImage = string.IsNullOrWhiteSpace(imageUrl);
+                var details = await _discogsApiClient.GetArtist(discogsIdForApi);
+                profile = details.Profile;
+                imageUrl = DiscogsApiImages.PrimaryOrFirstUri(details.Images);
+
+                artist.DiscogsProfile = profile;
+                artist.DiscogsImageUrl = imageUrl;
+                artist.SchemaVersion = Artist.ArtistSchemaVersion;
+                artist.DiscogsDetailsFetchedAt = DateTimeOffset.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
+
+                _memoryCache.Set(cacheKey, new DiscogsEntityDetailCacheEntry(profile, imageUrl), DetailCacheOptions);
             }
-
-            if (needProfile || needImage)
+            catch (Exception ex)
             {
-                try
-                {
-                    var details = await _discogsApiClient.GetArtist(discogsId);
-                    if (needProfile)
-                        profile = details.Profile;
-
-                    var pickedImage = DiscogsApiImages.PrimaryOrFirstUri(details.Images);
-                    if (needImage)
-                        imageUrl = pickedImage;
-
-                    if (needProfile)
-                        artist.DiscogsProfile = profile;
-                    if (needImage)
-                        artist.DiscogsImageUrl = imageUrl;
-                    artist.DiscogsDetailsFetchedAt = DateTimeOffset.UtcNow;
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _memoryCache.Set(cacheKey, new DiscogsEntityDetailCacheEntry(profile, imageUrl), DetailCacheOptions);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Failed to fetch Discogs artist details for {Name} ({DiscogsArtistId})", artist.Name,
-                        artist.DiscogsArtistId);
-                }
+                _logger.LogWarning(ex,
+                    "Failed to fetch Discogs artist details for {Name} ({DiscogsArtistId})", artist.Name,
+                    artist.DiscogsArtistId);
             }
         }
 

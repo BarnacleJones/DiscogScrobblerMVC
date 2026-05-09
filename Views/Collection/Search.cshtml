@@ -1,4 +1,7 @@
 @model DiscogScrobblerMVC.Models.CollectionSearchViewModel
+@{
+    var coverFallback = "/images/placeholder-cover.svg";
+}
 
 <div class="section-label mt-3">Search</div>
 
@@ -39,20 +42,17 @@ else
                        asp-action="Index"
                        asp-route-id="@r.ReleaseId"
                        class="search-result-link search-result-release">
-                        @if (!string.IsNullOrWhiteSpace(r.CoverUrl))
-                        {
-                            <img class="search-result-cover-thumb"
-                                 src="@r.CoverUrl"
-                                 alt=""
-                                 loading="lazy"
-                                 decoding="async"
-                                 width="40"
-                                 height="40" />
+                        @{
+                            var searchCoverSrc = string.IsNullOrWhiteSpace(r.CoverUrl) ? coverFallback : r.CoverUrl;
                         }
-                        else
-                        {
-                            <div class="search-result-cover-placeholder" aria-hidden="true"></div>
-                        }
+                        <img class="search-result-cover-thumb"
+                             src="@searchCoverSrc"
+                             alt=""
+                             loading="lazy"
+                             decoding="async"
+                             width="40"
+                             height="40"
+                             onerror="this.onerror=null;this.src='@coverFallback'" />
                         <div class="search-result-release-text">
                             <span class="search-result-title">@r.Album</span>
                             <span class="search-result-meta">@r.ArtistDisplay &middot; @(r.Year)</span>

@@ -13,6 +13,8 @@ public class ReleaseViewModel
     public IReadOnlyList<LabelLinkViewModel> Labels { get; set; } = [];
     public IReadOnlyList<GenreLinkViewModel> Genres { get; set; } = [];
     public IReadOnlyList<StyleLinkViewModel> Styles { get; set; } = [];
+    public string? Format { get; set; }
+    public string? Notes { get; set; }
     public IReadOnlyList<TrackViewModel> Tracklist { get; set; } = [];
 }
 

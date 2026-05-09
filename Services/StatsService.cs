@@ -1,4 +1,5 @@
 using DiscogScrobblerMVC.Data;
+using DiscogScrobblerMVC.Data.Entities;
 using DiscogScrobblerMVC.Models;
 using DiscogScrobblerMVC.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -68,11 +69,15 @@ public class StatsService : IStatsService
         viewModel.TrackDurationSampleSize = trackAggregate?.Sample ?? 0;
         viewModel.TotalTracks = trackAggregate?.Total ?? 0;
 
-        // Releases with at least one track ingested — drives the "syncing N…" hint.
+        // Releases with at least one track row (distinct releases contributing to aggregates).
         viewModel.IngestedReleaseCount = await _db.Tracks.AsNoTracking()
             .Where(x => x.Release.UserAssociations.Any(y => y.UserId == userId))
             .Select(x => x.ReleaseId)
             .Distinct()
+            .CountAsync(cancellationToken);
+
+        viewModel.PendingReleaseCount = await ownedReleases
+            .Where(x => x.SchemaVersion < Release.ReleaseSchemaVersion)
             .CountAsync(cancellationToken);
 
         // (2) Avg tracks per release: denominator is owned releases per product decision;
@@ -145,7 +150,7 @@ public class StatsService : IStatsService
             if (enqueued)
             {
                 _logger.LogInformation(
-                    "Stats page enqueued sync for user {UserId} ({Pending} releases missing tracks)",
+                    "Stats page enqueued sync for user {UserId} ({Pending} releases behind Discogs detail schema)",
                     userId,
                     viewModel.PendingReleaseCount);
             }
