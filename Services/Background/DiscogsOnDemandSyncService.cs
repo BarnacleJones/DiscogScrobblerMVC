@@ -26,14 +26,31 @@ public class DiscogsOnDemandSyncService : BackgroundService
         {
             try
             {
-                var userId = await _queue.DequeueUserFullSyncAsync(stoppingToken);
+                var work = await _queue.DequeueAsync(stoppingToken);
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var discogsService = scope.ServiceProvider.GetRequiredService<IDiscogsService>();
 
-                _logger.LogInformation("Starting on-demand Discogs sync for user {UserId}", userId);
-                await discogsService.SyncUserFullInBackground(userId, stoppingToken);
-                _logger.LogInformation("On-demand Discogs sync complete for user {UserId}", userId);
+                switch (work.Kind)
+                {
+                    case DiscogsQueuedWorkKind.FullSync:
+                        _logger.LogInformation("Starting on-demand Discogs full sync for user {UserId}", work.ApplicationUserId);
+                        await discogsService.SyncUserFullInBackground(work.ApplicationUserId, stoppingToken);
+                        _logger.LogInformation("On-demand Discogs full sync complete for user {UserId}", work.ApplicationUserId);
+                        break;
+                    case DiscogsQueuedWorkKind.ForceRefreshUserCollection:
+                        _logger.LogInformation(
+                            "Starting on-demand Discogs force refresh for user {UserId}",
+                            work.ApplicationUserId);
+                        await discogsService.ForceRefreshUserDiscogsCachedEntitiesAsync(work.ApplicationUserId, stoppingToken);
+                        _logger.LogInformation(
+                            "On-demand Discogs force refresh complete for user {UserId}",
+                            work.ApplicationUserId);
+                        break;
+                    default:
+                        _logger.LogWarning("Unknown Discogs queue kind {Kind} for user {UserId}", work.Kind, work.ApplicationUserId);
+                        break;
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -46,4 +63,3 @@ public class DiscogsOnDemandSyncService : BackgroundService
         }
     }
 }
-

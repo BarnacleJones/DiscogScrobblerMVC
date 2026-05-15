@@ -235,5 +235,16 @@ public class SettingsPageService : ISettingsPageService
             : "Could not start sync — try again.";
     }
 
+    public string StartForceRefreshDiscogsCachedEntities(ApplicationUser user)
+    {
+        if (string.IsNullOrWhiteSpace(user.DiscogsUsername))
+            return "Please set your Discogs username first.";
+
+        var enqueued = _syncQueue.EnqueueForceRefreshUserDiscogsCache(user.Id);
+        return enqueued
+            ? "Force refresh started in the background. Large libraries may take a long time."
+            : "Could not start force refresh — try again.";
+    }
+
     private static string PendingLastFmCacheKey(string userId) => $"lastfm:pending-token:{userId}";
 }

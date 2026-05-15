@@ -15,4 +15,9 @@ public interface IDiscogsService
     /// Existing stored image URLs are left unchanged unless empty.
     /// </summary>
     Task RefreshAllArtistLabelDiscogsDetailsAsync(CancellationToken cancellationToken, string? restrictToApplicationUserId = null);
+
+    /// <summary>
+    /// Resets Discogs-detail schema versions for the user's collection releases and linked artists/labels, then re-syncs release details, artist/label profiles, and missing images (scoped to that user).
+    /// </summary>
+    Task ForceRefreshUserDiscogsCachedEntitiesAsync(string applicationUserId, CancellationToken cancellationToken);
 }

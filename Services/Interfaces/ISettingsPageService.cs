@@ -28,6 +28,8 @@ public interface ISettingsPageService
     Task<string> DisconnectLastFmAsync(ApplicationUser user, CancellationToken cancellationToken);
 
     string StartDiscogsSync(ApplicationUser user);
+
+    string StartForceRefreshDiscogsCachedEntities(ApplicationUser user);
 }
 
 public record SettingsSaveResult(bool Succeeded, string StatusMessage, IReadOnlyList<string> Errors);

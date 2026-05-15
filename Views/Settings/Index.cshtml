@@ -99,6 +99,17 @@
                     </button>
                 </form>
 
+                <form asp-action="ForceRefreshDiscogsCachedEntities" method="post" class="mb-2">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary">
+                        Force refresh Discogs cache for my collection
+                    </button>
+                </form>
+                <p class="text-secondary small mb-0">
+                    Resets cached Discogs-detail versions for <strong>your</strong> releases and linked artists and labels, then re-fetches from Discogs (rate limits apply).
+                    Existing track titles are not reconciled when tracks are already imported—release notes, formats, and counts are updated.
+                </p>
+
             </div>
         </div>
     </div>

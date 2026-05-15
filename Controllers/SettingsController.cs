@@ -136,6 +136,18 @@ public class SettingsController : ApplicationController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForceRefreshDiscogsCachedEntities()
+    {
+        var user = await GetCurrentUserAsync();
+        if (user is null)
+            return Challenge();
+
+        TempData["StatusMessage"] = _settingsPageService.StartForceRefreshDiscogsCachedEntities(user);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> ApproveRegistration(string userId, CancellationToken cancellationToken)
     {
