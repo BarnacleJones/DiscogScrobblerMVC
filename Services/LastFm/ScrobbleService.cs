@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using DiscogScrobblerMVC.Data;
 using DiscogScrobblerMVC.Models;
 using DiscogScrobblerMVC.Services.Interfaces;
 using DiscogScrobblerMVC.Services.Utilities;
+using Hqub.Lastfm;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -22,6 +24,10 @@ public class ScrobbleService : IScrobbleService
     /// When some tracks have lengths, missing tracks use max(this, rounded average known length).
     /// </summary>
     private const int MinimumInferredPlaybackSeconds = 60;
+
+    /// <summary>Discogs artist names may end with a numeric disambiguator such as "(2)".</summary>
+    private static readonly Regex DiscogsArtistDisambiguationSuffix =
+        new(@"\s*\(\d+\)\s*$", RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
 
     private readonly ApplicationDbContext _db;
     private readonly LastFmOptions _options;
@@ -71,7 +77,7 @@ public class ScrobbleService : IScrobbleService
             .Select(x => new
             {
                 x.Album,
-                Artists = x.Artists.Select(y => y.Name).ToList(),
+                Artists = x.Artists.Select(y => new { y.Id, y.Name, y.LastFmArtistName }).ToList(),
                 Tracks = x.Tracks
                     .Where(y => y.Title != "")
                     .Select(y => new
@@ -96,13 +102,22 @@ public class ScrobbleService : IScrobbleService
         if (tracks.Count == 0)
             return ScrobbleFailureReason.NoTracks;
 
-        var artist = FormatAlbumArtist(release.Artists);
+        var apiKey = _options.ApiKey.Trim();
+        var apiSecret = _options.ApiSecret.Trim();
+
+        var lastFmClient = new LastfmClient(apiKey, apiSecret);
+        var releaseArtists = release.Artists
+            .Select(x => new ReleaseArtistForScrobble(x.Id, x.Name, x.LastFmArtistName))
+            .ToList();
+        var resolvedByArtistId =
+            await ResolveAndPersistArtistNamesForScrobbleAsync(lastFmClient, releaseArtists, cancellationToken)
+                .ConfigureAwait(false);
+        var resolvedArtistNames = releaseArtists.ConvertAll(x => resolvedByArtistId[x.Id]);
+        var artist = FormatAlbumArtist(resolvedArtistNames);
+
         var albumRaw = release.Album?.Trim();
         var album =
             string.IsNullOrWhiteSpace(albumRaw) ? null : albumRaw;
-
-        var apiKey = _options.ApiKey.Trim();
-        var apiSecret = _options.ApiSecret.Trim();
 
         var albumEndUtc = DateTime.UtcNow;
         var rowArtist = NormalizeScrobbleText(artist);
@@ -158,6 +173,92 @@ public class ScrobbleService : IScrobbleService
         if (ordered.Count == 0)
             return "Unknown Artist";
         return string.Join(", ", ordered);
+    }
+
+    private readonly record struct ReleaseArtistForScrobble(int Id, string Name, string? LastFmArtistName);
+
+    /// <summary>
+    /// Builds a map of artist Id → normalized scrobble artist name.
+    /// Uses <see cref="Artist.LastFmArtistName"/> when set; otherwise resolves via Last.fm once and persists it.</summary>
+    private async Task<IReadOnlyDictionary<int, string>> ResolveAndPersistArtistNamesForScrobbleAsync(
+        LastfmClient client,
+        IReadOnlyList<ReleaseArtistForScrobble> releaseArtists,
+        CancellationToken cancellationToken)
+    {
+        var primaryRowById = releaseArtists
+            .GroupBy(x => x.Id)
+            .ToDictionary(x => x.Key, x => x.First());
+
+        var result = new Dictionary<int, string>();
+        foreach (var id in primaryRowById.Keys)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var row = primaryRowById[id];
+            var stored = row.LastFmArtistName?.Trim();
+            if (!string.IsNullOrEmpty(stored))
+            {
+                var fromStore = NormalizeScrobbleText(stored);
+                result[id] = string.IsNullOrEmpty(fromStore) ? NormalizeScrobbleText(row.Name) : fromStore;
+                continue;
+            }
+
+            var computed = await ComputeResolvedArtistNameForScrobbleAsync(client, row.Name).ConfigureAwait(false);
+            result[id] = computed;
+
+            await _db.Artists
+                .Where(x => x.Id == id)
+                .ExecuteUpdateAsync(
+                    x => x.SetProperty(a => a.LastFmArtistName, computed),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            var normalizedRaw = NormalizeScrobbleText(row.Name);
+            if (computed != normalizedRaw)
+            {
+                _logger.LogInformation(
+                    "Persisted Last.fm scrobble artist for artist Id {ArtistId}: \"{Raw}\" -> \"{Resolved}\".",
+                    id,
+                    row.Name,
+                    computed);
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<string> ComputeResolvedArtistNameForScrobbleAsync(LastfmClient client, string rawName)
+    {
+        string? corrected = null;
+        try
+        {
+            var entity = await client.Artist.GetCorrectionAsync(rawName).ConfigureAwait(false);
+            corrected = entity?.Name?.Trim();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Last.fm artist.getCorrection failed for \"{Artist}\".", rawName);
+        }
+
+        string chosen;
+        if (!string.IsNullOrEmpty(corrected) && !string.Equals(corrected, rawName, StringComparison.Ordinal))
+            chosen = corrected;
+        else
+            chosen = StripDiscogsArtistDisambiguationSuffix(rawName);
+
+        var normalizedChosen = NormalizeScrobbleText(chosen);
+        if (string.IsNullOrEmpty(normalizedChosen))
+            normalizedChosen = NormalizeScrobbleText(rawName);
+
+        return normalizedChosen;
+    }
+
+    private static string StripDiscogsArtistDisambiguationSuffix(string name)
+    {
+        var trimmedOuter = name.Trim();
+        if (trimmedOuter.Length == 0)
+            return name;
+
+        return DiscogsArtistDisambiguationSuffix.Replace(trimmedOuter, "").TrimEnd();
     }
 
     /// <summary>
