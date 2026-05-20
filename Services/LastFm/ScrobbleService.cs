@@ -112,7 +112,12 @@ public class ScrobbleService : IScrobbleService
         var resolvedByArtistId =
             await ResolveAndPersistArtistNamesForScrobbleAsync(lastFmClient, releaseArtists, cancellationToken);
         var resolvedArtistNames = releaseArtists.ConvertAll(x => resolvedByArtistId[x.Id]);
-        var artist = FormatAlbumArtist(resolvedArtistNames);
+        // Multi-artist releases: resolve the joined collaboration name via Last.fm on each scrobble.
+        // Intentionally not persisted — Artist.LastFmArtistName is solo-artist only.
+        var artist = await ResolveCombinedAlbumArtistForScrobbleAsync(
+            lastFmClient,
+            resolvedArtistNames,
+            cancellationToken);
 
         var albumRaw = release.Album?.Trim();
         var album =
@@ -158,20 +163,83 @@ public class ScrobbleService : IScrobbleService
         }
     }
 
-    private bool HasApiKeyPair() =>
-        !string.IsNullOrWhiteSpace(_options.ApiKey) && !string.IsNullOrWhiteSpace(_options.ApiSecret);
-
-    private static string FormatAlbumArtist(IEnumerable<string> artists)
+    private bool HasApiKeyPair()
     {
-        var ordered = artists
+        return !string.IsNullOrWhiteSpace(_options.ApiKey)
+            && !string.IsNullOrWhiteSpace(_options.ApiSecret);
+    }
+
+    private static List<string> DistinctOrderedArtistNames(IEnumerable<string> artists)
+    {
+        return artists
             .Select(x => x.Trim())
             .Where(y => y.Length > 0)
-            .OrderBy(y => y)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(y => y, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
 
-        if (ordered.Count == 0)
+    private static string FormatAlbumArtistCommaJoined(IReadOnlyList<string> orderedDistinctArtists)
+    {
+        if (orderedDistinctArtists.Count == 0)
             return "Unknown Artist";
-        return string.Join(", ", ordered);
+
+        return string.Join(", ", orderedDistinctArtists);
+    }
+
+    private static string FormatAlbumArtistAmpersandJoined(IReadOnlyList<string> orderedDistinctArtists)
+    {
+        if (orderedDistinctArtists.Count == 0)
+            return "Unknown Artist";
+
+        return string.Join(" & ", orderedDistinctArtists);
+    }
+
+    /// <summary>
+    /// Builds the album-level artist string for <c>track.scrobble</c>.
+    /// Solo names come from persisted per-artist resolution; when 2+ distinct artists are credited,
+    /// the joined collaboration name is resolved via Last.fm on each scrobble and is not stored in the database.
+    /// </summary>
+    private async Task<string> ResolveCombinedAlbumArtistForScrobbleAsync(
+        LastfmClient client,
+        IEnumerable<string> resolvedArtistNames,
+        CancellationToken cancellationToken)
+    {
+        var distinct = DistinctOrderedArtistNames(resolvedArtistNames);
+        if (distinct.Count == 0)
+            return "Unknown Artist";
+        if (distinct.Count == 1)
+            return distinct[0];
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var commaJoined = FormatAlbumArtistCommaJoined(distinct);
+        var correctedFromComma = await TryGetLastFmArtistCorrectionNameAsync(client, commaJoined);
+        if (!string.IsNullOrEmpty(correctedFromComma)
+            && !string.Equals(correctedFromComma, commaJoined, StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = NormalizeScrobbleText(correctedFromComma);
+            _logger.LogInformation(
+                "Last.fm album artist for scrobble: \"{Joined}\" -> \"{Resolved}\".",
+                commaJoined,
+                resolved);
+            return resolved;
+        }
+
+        var ampersandJoined = FormatAlbumArtistAmpersandJoined(distinct);
+        var correctedFromAmpersand = await TryGetLastFmArtistCorrectionNameAsync(client, ampersandJoined);
+        if (!string.IsNullOrEmpty(correctedFromAmpersand)
+            && !string.Equals(correctedFromAmpersand, ampersandJoined, StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = NormalizeScrobbleText(correctedFromAmpersand);
+            _logger.LogInformation(
+                "Last.fm album artist for scrobble: \"{Joined}\" -> \"{Resolved}\".",
+                ampersandJoined,
+                resolved);
+            return resolved;
+        }
+
+        return NormalizeScrobbleText(ampersandJoined);
     }
 
     private readonly record struct ReleaseArtistForScrobble(int Id, string Name, string? LastFmArtistName);
@@ -226,16 +294,7 @@ public class ScrobbleService : IScrobbleService
 
     private async Task<string> ComputeResolvedArtistNameForScrobbleAsync(LastfmClient client, string rawName)
     {
-        string? corrected = null;
-        try
-        {
-            var entity = await client.Artist.GetCorrectionAsync(rawName);
-            corrected = entity?.Name?.Trim();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Last.fm artist.getCorrection failed for \"{Artist}\".", rawName);
-        }
+        var corrected = await TryGetLastFmArtistCorrectionNameAsync(client, rawName);
 
         string chosen;
         if (!string.IsNullOrEmpty(corrected) && !string.Equals(corrected, rawName, StringComparison.Ordinal))
@@ -248,6 +307,29 @@ public class ScrobbleService : IScrobbleService
             normalizedChosen = NormalizeScrobbleText(rawName);
 
         return normalizedChosen;
+    }
+
+    /// <summary>
+    /// Returns Last.fm's corrected artist name, or null when the API has no match (including invalid combined names).
+    /// </summary>
+    private async Task<string?> TryGetLastFmArtistCorrectionNameAsync(LastfmClient client, string rawName)
+    {
+        try
+        {
+            var entity = await client.Artist.GetCorrectionAsync(rawName);
+            return entity?.Name?.Trim();
+        }
+        catch (ServiceException ex)
+        {
+            // Last.fm throws when the supplied name is not a known artist (common for comma-joined collaborations).
+            _logger.LogDebug(ex, "Last.fm artist.getCorrection had no match for \"{Artist}\".", rawName);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Last.fm artist.getCorrection failed for \"{Artist}\".", rawName);
+            return null;
+        }
     }
 
     private static string StripDiscogsArtistDisambiguationSuffix(string name)
