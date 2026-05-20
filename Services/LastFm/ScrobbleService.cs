@@ -110,8 +110,7 @@ public class ScrobbleService : IScrobbleService
             .Select(x => new ReleaseArtistForScrobble(x.Id, x.Name, x.LastFmArtistName))
             .ToList();
         var resolvedByArtistId =
-            await ResolveAndPersistArtistNamesForScrobbleAsync(lastFmClient, releaseArtists, cancellationToken)
-                .ConfigureAwait(false);
+            await ResolveAndPersistArtistNamesForScrobbleAsync(lastFmClient, releaseArtists, cancellationToken);
         var resolvedArtistNames = releaseArtists.ConvertAll(x => resolvedByArtistId[x.Id]);
         var artist = FormatAlbumArtist(resolvedArtistNames);
 
@@ -202,15 +201,14 @@ public class ScrobbleService : IScrobbleService
                 continue;
             }
 
-            var computed = await ComputeResolvedArtistNameForScrobbleAsync(client, row.Name).ConfigureAwait(false);
+            var computed = await ComputeResolvedArtistNameForScrobbleAsync(client, row.Name);
             result[id] = computed;
 
             await _db.Artists
                 .Where(x => x.Id == id)
                 .ExecuteUpdateAsync(
                     x => x.SetProperty(a => a.LastFmArtistName, computed),
-                    cancellationToken)
-                .ConfigureAwait(false);
+                    cancellationToken);
 
             var normalizedRaw = NormalizeScrobbleText(row.Name);
             if (computed != normalizedRaw)
@@ -231,7 +229,7 @@ public class ScrobbleService : IScrobbleService
         string? corrected = null;
         try
         {
-            var entity = await client.Artist.GetCorrectionAsync(rawName).ConfigureAwait(false);
+            var entity = await client.Artist.GetCorrectionAsync(rawName);
             corrected = entity?.Name?.Trim();
         }
         catch (Exception ex)
@@ -393,8 +391,8 @@ public class ScrobbleService : IScrobbleService
 
         request.Headers.TryAddWithoutValidation("User-Agent", "DiscogScrobblerMVC");
 
-        using var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var response = await http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         var doc = XDocument.Parse(body);
         var lfm = doc.Root;

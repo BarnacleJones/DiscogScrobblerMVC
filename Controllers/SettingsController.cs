@@ -149,52 +149,58 @@ public class SettingsController : ApplicationController
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> ApproveRegistration(string userId, CancellationToken cancellationToken)
+    public Task<IActionResult> ApproveRegistration(string userId, CancellationToken cancellationToken)
     {
-        var admin = await GetCurrentUserAsync();
-        if (admin is null)
-            return Challenge();
-
-        var result = await _accountApprovalService.ApproveAsync(userId, admin, cancellationToken);
-        TempData["StatusMessage"] = result.Succeeded
-            ? "Account approved. They can sign in now."
-            : result.ErrorMessage ?? "Could not approve that account.";
-        return RedirectToAction(nameof(Index));
+        return ModeratePendingRegistrationAsync(userId, cancellationToken, approve: true);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> DenyRegistration(string userId, CancellationToken cancellationToken)
+    public Task<IActionResult> DenyRegistration(string userId, CancellationToken cancellationToken)
+    {
+        return ModeratePendingRegistrationAsync(userId, cancellationToken, approve: false);
+    }
+
+    private Task<ApplicationUser?> GetCurrentUserAsync() =>
+        _userManager.GetUserAsync(User);
+
+    private Task<SettingsViewModel> BuildViewModelWithSubmissionAsync(
+        ApplicationUser user,
+        SettingsViewModel submission,
+        CancellationToken cancellationToken) =>
+        _settingsPageService.BuildViewModelAsync(
+            user,
+            BuildLastFmAuthorizationCallbackUri(),
+            cancellationToken,
+            submission);
+
+    private async Task<IActionResult> ModeratePendingRegistrationAsync(
+        string targetUserId,
+        CancellationToken cancellationToken,
+        bool approve)
     {
         var admin = await GetCurrentUserAsync();
         if (admin is null)
             return Challenge();
 
-        var result = await _accountApprovalService.DenyAsync(userId, admin, cancellationToken);
+        var result = approve
+            ? await _accountApprovalService.ApproveAsync(targetUserId, admin, cancellationToken)
+            : await _accountApprovalService.DenyAsync(targetUserId, admin, cancellationToken);
+
         TempData["StatusMessage"] = result.Succeeded
-            ? "Registration request removed."
-            : result.ErrorMessage ?? "Could not deny that request.";
+            ? (approve
+                ? "Account approved. They can sign in now."
+                : "Registration request removed.")
+            : result.ErrorMessage ?? (approve
+                ? "Could not approve that account."
+                : "Could not deny that request.");
+
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<ApplicationUser?> GetCurrentUserAsync() =>
-        await _userManager.GetUserAsync(User);
-
-    private async Task<SettingsViewModel> BuildViewModelWithSubmissionAsync(
-        ApplicationUser user,
-        SettingsViewModel submission,
-        CancellationToken cancellationToken)
-    {
-        return await _settingsPageService.BuildViewModelAsync(
-            user,
-            BuildLastFmAuthorizationCallbackUri(),
-            cancellationToken,
-            submission);
-    }
-
     /// <remarks>
-    /// Last.fm redirects to this URL after authorizing. Default is inferred from this HTTP request -
+    /// Last.fm redirects to this URL after authorizing. Default is inferred from this HTTP request —
     /// set Hosting:PublicBaseUrl when Docker / proxies hide your real HTTPS host.
     /// </remarks>
     private string BuildLastFmAuthorizationCallbackUri()

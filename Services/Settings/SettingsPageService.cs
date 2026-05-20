@@ -104,8 +104,6 @@ public class SettingsPageService : ISettingsPageService
         bool clearPersonalAccessToken,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         // Always load a fresh tracked entity — avoids failed updates when the principal snapshot is stale
         // (ConcurrencyStamp / custom columns) or ChangeTracker state is unexpected on scoped DbContext.
         var freshUser = await _userManager.FindByIdAsync(user.Id);
