@@ -31,16 +31,14 @@ public class AccountApprovalService : IAccountApprovalService
             })
             .ToListAsync(cancellationToken);
 
-    public async Task<int> GetPendingCountAsync(CancellationToken cancellationToken = default) =>
-        await _db.Users.AsNoTracking().CountAsync(x => !x.AccountApproved, cancellationToken);
+    public Task<int> GetPendingCountAsync(CancellationToken cancellationToken = default) =>
+        _db.Users.AsNoTracking().CountAsync(x => !x.AccountApproved, cancellationToken);
 
     public async Task<AccountApprovalResult> ApproveAsync(
         string targetUserId,
         ApplicationUser adminUser,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         if (string.IsNullOrWhiteSpace(targetUserId))
             return new AccountApprovalResult(false, "Missing user id.");
 
@@ -48,7 +46,6 @@ public class AccountApprovalService : IAccountApprovalService
             return new AccountApprovalResult(false, "You cannot approve your own account this way.");
 
         var target = await _userManager.FindByIdAsync(targetUserId);
-        cancellationToken.ThrowIfCancellationRequested();
         if (target is null)
             return new AccountApprovalResult(false, "User not found.");
 
@@ -71,8 +68,6 @@ public class AccountApprovalService : IAccountApprovalService
         ApplicationUser adminUser,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         if (string.IsNullOrWhiteSpace(targetUserId))
             return new AccountApprovalResult(false, "Missing user id.");
 
@@ -80,7 +75,6 @@ public class AccountApprovalService : IAccountApprovalService
             return new AccountApprovalResult(false, "You cannot deny your own account.");
 
         var target = await _userManager.FindByIdAsync(targetUserId);
-        cancellationToken.ThrowIfCancellationRequested();
         if (target is null)
             return new AccountApprovalResult(false, "User not found.");
 

@@ -13,6 +13,7 @@ public class ArtistConfiguration : IEntityTypeConfiguration<Artist>
         // we match by id first and do not enforce global uniqueness on Discogs ids.
         builder.HasIndex(a => a.DiscogsArtistId).HasFilter("\"DiscogsArtistId\" IS NOT NULL");
         builder.Property(a => a.Name).HasMaxLength(500);
+        builder.Property(a => a.LastFmArtistName).HasMaxLength(500);
         builder.Property(a => a.DiscogsProfile).HasMaxLength(65535);
         builder.Property(a => a.DiscogsImageUrl).HasMaxLength(2048);
         builder.Property(a => a.LocalImageFilename).HasMaxLength(2000);

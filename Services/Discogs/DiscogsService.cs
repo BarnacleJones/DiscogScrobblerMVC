@@ -627,6 +627,46 @@ public class DiscogsService : IDiscogsService
         await RefreshAllArtistLabelDiscogsDetailsAsync(cancellationToken, applicationUserId);
     }
 
+    public async Task ForceRefreshUserDiscogsCachedEntitiesAsync(string applicationUserId, CancellationToken cancellationToken)
+    {
+        await ResetUserDiscogsDetailSchemaVersionsAsync(applicationUserId, cancellationToken);
+        await SyncReleaseDetails(cancellationToken, applicationUserId);
+        await RefreshAllArtistLabelDiscogsDetailsAsync(cancellationToken, applicationUserId);
+        await DownloadMissingImages(cancellationToken, applicationUserId);
+    }
+
+    private async Task ResetUserDiscogsDetailSchemaVersionsAsync(string applicationUserId, CancellationToken cancellationToken)
+    {
+        var releasesReset = await _db.Releases
+            .Where(r => r.UserAssociations.Any(u => u.UserId == applicationUserId))
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(x => x.SchemaVersion, 0),
+                cancellationToken);
+
+        var artistsReset = await _db.Artists
+            .Where(a => a.DiscogsArtistId != null
+                        && a.Releases.Any(r =>
+                            r.UserAssociations.Any(u => u.UserId == applicationUserId)))
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(x => x.SchemaVersion, 0),
+                cancellationToken);
+
+        var labelsReset = await _db.Labels
+            .Where(l => l.DiscogsLabelId != null
+                        && l.Releases.Any(r =>
+                            r.UserAssociations.Any(u => u.UserId == applicationUserId)))
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(x => x.SchemaVersion, 0),
+                cancellationToken);
+
+        _logger.LogInformation(
+            "Reset Discogs-detail schema versions for user {UserId}: {ReleaseCount} releases, {ArtistCount} artists, {LabelCount} labels.",
+            applicationUserId,
+            releasesReset,
+            artistsReset,
+            labelsReset);
+    }
+
     public async Task DownloadMissingImages(CancellationToken cancellationToken, string? restrictToApplicationUserId = null)
     {
         await _discogsExclusiveGate.WaitAsync(cancellationToken);

@@ -4,6 +4,7 @@ public interface IDiscogsSyncQueue
 {
     bool EnqueueUserFullSync(string applicationUserId);
 
-    ValueTask<string> DequeueUserFullSyncAsync(CancellationToken cancellationToken);
-}
+    bool EnqueueForceRefreshUserDiscogsCache(string applicationUserId);
 
+    ValueTask<DiscogsQueuedWork> DequeueAsync(CancellationToken cancellationToken);
+}

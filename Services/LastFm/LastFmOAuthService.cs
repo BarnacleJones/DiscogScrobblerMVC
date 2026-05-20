@@ -97,8 +97,8 @@ public class LastFmOAuthService : ILastFmOAuthService
             request.Headers.TryAddWithoutValidation("User-Agent", "DiscogScrobblerMVC");
 
             var http = _httpFactory.CreateClient();
-            using var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var response = await http.SendAsync(request, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = XDocument.Parse(body);
             var lfm = doc.Root;
             var status = lfm?.Attribute("status")?.Value;

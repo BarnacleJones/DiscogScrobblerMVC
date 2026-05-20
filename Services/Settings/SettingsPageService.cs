@@ -104,8 +104,6 @@ public class SettingsPageService : ISettingsPageService
         bool clearPersonalAccessToken,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         // Always load a fresh tracked entity — avoids failed updates when the principal snapshot is stale
         // (ConcurrencyStamp / custom columns) or ChangeTracker state is unexpected on scoped DbContext.
         var freshUser = await _userManager.FindByIdAsync(user.Id);
@@ -233,6 +231,17 @@ public class SettingsPageService : ISettingsPageService
         return enqueued
             ? "Sync started in the background."
             : "Could not start sync — try again.";
+    }
+
+    public string StartForceRefreshDiscogsCachedEntities(ApplicationUser user)
+    {
+        if (string.IsNullOrWhiteSpace(user.DiscogsUsername))
+            return "Please set your Discogs username first.";
+
+        var enqueued = _syncQueue.EnqueueForceRefreshUserDiscogsCache(user.Id);
+        return enqueued
+            ? "Force refresh started in the background. Large libraries may take a long time."
+            : "Could not start force refresh — try again.";
     }
 
     private static string PendingLastFmCacheKey(string userId) => $"lastfm:pending-token:{userId}";
