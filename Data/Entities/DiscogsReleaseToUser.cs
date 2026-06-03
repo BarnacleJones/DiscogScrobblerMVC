@@ -7,7 +7,7 @@ public class DiscogsReleaseToUser
     /// <summary>Discogs collection folder id when known.</summary>
     public int? DiscogsFolderId { get; set; }
     /// <summary>Discogs instance id — unique per copy. Null on legacy rows until merged on sync.</summary>
-    public int? DiscogsInstanceId { get; set; }
+    public long? DiscogsInstanceId { get; set; }
     public string UserId { get; set; } = "";
     public DateTime DateAdded { get; set; }
 
