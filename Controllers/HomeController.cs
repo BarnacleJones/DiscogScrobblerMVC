@@ -8,7 +8,7 @@ namespace DiscogScrobblerMVC.Controllers;
 
 public class HomeController : ApplicationController
 {
-    private const int RecentReleaseCount = 9;
+    private const int RecentReleaseCount = 20;
 
     private readonly ILogger<HomeController> _logger;
     private readonly ICollectionService _collectionService;
